@@ -28,3 +28,9 @@ Homestead.json
 .env.production
 .phpactor.json
 auth.json
+
+/public/aadhar_back_image/*
+/public/aadhar_front_image/*
+/public/pan_image/*
+/public/images/*
+/public/profile_image/*
