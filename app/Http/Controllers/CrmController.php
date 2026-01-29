@@ -2570,7 +2570,8 @@ class CrmController extends Controller
 
 
 
-    public function proposalType(Request $request){
+    public function proposalType(Request $request)
+    {
         $lead = lead::findorfail($request->id);
         if($lead){
             $category =Category::findorFail($lead->client_category);
