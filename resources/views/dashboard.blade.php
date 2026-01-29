@@ -1,4 +1,5 @@
 <x-app-layout>
+    @section('title','Dashboard')
     <meta name="csrf-token" content="{{ csrf_token() }}">
      <!-- Show Counts  -->
     <script type="text/javascript" src="https://cdn.jsdelivr.net/jquery/latest/jquery.min.js"></script>
