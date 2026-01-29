@@ -49,3 +49,4 @@ auth.json
 !**/index.php
 !**/.gitignore
 tests/
+/public/hot
