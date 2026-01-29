@@ -34,3 +34,10 @@ auth.json
 /public/pan_image/*
 /public/images/*
 /public/profile_image/*
+/storage/app/public/*
+/storage/app/images/*
+/storage/app/profile_image/*
+/storage/app/aadhar_back_image/*
+/storage/app/aadhar_front_image/*
+/storage/app/pan_image
+/storage/framework/*
