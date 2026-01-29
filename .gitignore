@@ -1,43 +1,50 @@
+# --- Standard Laravel ---
 /vendor/
 node_modules/
-npm-debug.log
-yarn-error.log
-
-# Laravel 4 specific
-bootstrap/compiled.php
-app/storage/
-
-# Laravel 5 & Lumen specific
-public/storage
-public/hot
-
-# Laravel 5 & Lumen specific with changed public path
-public_html/storage
-public_html/hot
-
-storage/*.key
 .env
-Homestead.yaml
-Homestead.json
-/.vagrant
-.phpunit.result.cache
-
-/public/build
-/storage/pail
 .env.backup
 .env.production
-.phpactor.json
 auth.json
+.phpunit.result.cache
 
+# --- Storage Folder (Comprehensive) ---
+# This ignores everything in storage except the .gitignore files 
+# so the folders still exist on the server.
+/storage/*.key
+/storage/framework/*
+/storage/logs/*
+/storage/debugbar/*
+/storage/pail/*
+
+# --- Document & Image Restriction ---
+# Specifically blocking common media/doc extensions in the whole project
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.pdf
+*.webp
+*.zip
+*.svg
+
+# --- Public & App Folders (No Assets) ---
+# Ignore all files in these directories, but keep the directories
 /public/aadhar_back_image/*
 /public/aadhar_front_image/*
 /public/pan_image/*
 /public/images/*
 /public/profile_image/*
+/public/build
+
 /storage/app/public/*
 /storage/app/images/*
 /storage/app/profile_image/*
 /storage/app/aadhar_back_image/*
 /storage/app/aadhar_front_image/*
-/storage/app/pan_image
-/storage/framework/*
+/storage/app/pan_image/*
+
+# --- Exceptions ---
+# If you want to keep the .gitignore files inside these folders
+!**/web.config
+!**/index.php
+!**/.gitignore
