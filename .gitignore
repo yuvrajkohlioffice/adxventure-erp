@@ -48,3 +48,4 @@ auth.json
 !**/web.config
 !**/index.php
 !**/.gitignore
+tests/
