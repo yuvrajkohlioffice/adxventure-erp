@@ -56,6 +56,7 @@ require __DIR__ . '/auth.php';
 require_once app_path('Helpers/helpers.php');
 
 Route::get('/clear-cache', function () {
+    Artisan::call('optimize:clear');
     Artisan::call('cache:clear');
     Artisan::call('config:clear');
     Artisan::call('route:clear');
