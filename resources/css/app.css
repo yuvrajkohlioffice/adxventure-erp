@@ -1,3 +1,14 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'bootstrap/dist/css/bootstrap.min.css';
+
+/* 2. Import Bootstrap Icons (You just installed this) */
+@import 'bootstrap-icons/font/bootstrap-icons.css';
+
+/* 3. Import Boxicons */
+@import 'boxicons/css/boxicons.min.css';
+
+/* 4. Import Toastr */
+@import 'toastr/build/toastr.min.css';
+
+/* 5. Import Datepicker styles */
+@import 'daterangepicker/daterangepicker.css';
+@import 'bootstrap-datepicker/dist/css/bootstrap-datepicker.min.css';

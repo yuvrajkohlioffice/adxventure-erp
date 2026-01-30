@@ -27,11 +27,8 @@ use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Http;
 use App\Helpers\EncodingHelper;
 
-
-
 class CrmController extends Controller
 {
-
     private function initializeLeadQuery()
     {
         return Lead::with('category', 'totalAmount', 'Followup', 'countries', 'lastFollowup');
@@ -77,266 +74,271 @@ class CrmController extends Controller
         # get counts
         $userRoleData = $this->handleRoleBasedLogic($user, $query);
 
-        // counts 
+        // counts
         $count = [];
         if ($user && $user->hasRole(['BDE', 'Business Development Intern'])) {
             $count['leads'] = Lead::where(function ($query) {
-                $query->whereDate('created_at', Carbon::today())
-                    ->orWhereDate('assigned_date', Carbon::today());
+                $query->whereDate('created_at', Carbon::today())->orWhereDate('assigned_date', Carbon::today());
             })
                 ->where('assigned_user_id', $user->id)
                 ->count();
-            $count['followups'] =  Followup::whereHas('lead')->where('user_id', $user->id)
+            $count['followups'] = Followup::whereHas('lead')
+                ->where('user_id', $user->id)
                 ->where(function ($query) {
                     $query->whereDate('created_at', Carbon::today());
-                })->distinct('lead_id')->count();
+                })
+                ->distinct('lead_id')
+                ->count();
             $count['proposals'] = Lead::whereDate('proposal_date', Carbon::today())->where('proposal', 1)->where('assigned_user_id', $user->id)->count();
             $count['quotation'] = Lead::whereDate('quotation_date', Carbon::today())->where('quotation', 1)->where('assigned_user_id', $user->id)->count();
             $count['delay'] = 0;
-            $count['reject'] =  FollowUp::whereHas('lead')->where('user_id', $user->id)
+            $count['reject'] = FollowUp::whereHas('lead')
+                ->where('user_id', $user->id)
                 ->where(function ($query) {
-                    $query->where('reason', ['Wrong Information', 'Not interested', 'Work with other company'])
-                        ->whereDate('created_at', Carbon::today());
-                })->distinct('lead_id')->count();
+                    $query->where('reason', ['Wrong Information', 'Not interested', 'Work with other company'])->whereDate('created_at', Carbon::today());
+                })
+                ->distinct('lead_id')
+                ->count();
             $count['revenue'] = 0;
         } else {
-            $count['leads'] =  Lead::whereDate('created_at', Carbon::today())->count();
+            $count['leads'] = Lead::whereDate('created_at', Carbon::today())->count();
             $count['followups'] = Followup::whereHas('lead')->whereDate('created_at', Carbon::today())->select('lead_id')->distinct()->count();
             $count['proposals'] = Lead::whereDate('proposal_date', Carbon::today())->where('proposal', 1)->count();
             $count['quotation'] = Lead::whereDate('quotation_date', Carbon::today())->where('quotation', 1)->count();
             $count['revenue'] = 0;
             $count['delay'] = Followup::whereHas('lead')
                 ->where(function ($query) {
-                    $query->where('delay', 1)
-                        ->orWhere('is_completed', '!=', 1);
+                    $query->where('delay', 1)->orWhere('is_completed', '!=', 1);
                 })
                 ->where('next_date', Carbon::today())
                 ->distinct('lead_id')
                 ->count();
-            $count['reject'] = Followup::whereHas('lead')->whereIn('reason', ['Wrong Information', 'Not interested', 'Work with other company'])->whereDate('created_at', Carbon::today())->select('lead_id')->distinct()->count();
+            $count['reject'] = Followup::whereHas('lead')
+                ->whereIn('reason', ['Wrong Information', 'Not interested', 'Work with other company'])
+                ->whereDate('created_at', Carbon::today())
+                ->select('lead_id')
+                ->distinct()
+                ->count();
         }
 
         return view('admin.crm.index', compact('userRoleData', 'users', 'countries', 'services', 'projectCategories', 'categories', 'messagetemplates', 'bdeReports', 'count'));
     }
 
-    
+    public function data(Request $request)
+    {
+        // 1. Pre-fetch Static Data (Optimizes the 'service' column N+1 issue)
+        // Instead of querying DB for every row, we load names into memory once.
+        $projectCategories = ProjectCategory::pluck('name', 'id')->toArray();
 
-public function data(Request $request)
-{
-    // 1. Pre-fetch Static Data (Optimizes the 'service' column N+1 issue)
-    // Instead of querying DB for every row, we load names into memory once.
-    $projectCategories = ProjectCategory::pluck('name', 'id')->toArray();
+        // 2. Query Construction
+        $user = auth()->user();
 
-    // 2. Query Construction
-    $user = auth()->user();
-    
-    $query = Lead::with([
-            'category', 
-            'countries', 
-            'user', 
-            'AssignedUser', 
+        $query = Lead::with([
+            'category',
+            'countries',
+            'user',
+            'AssignedUser',
             'invoice',
             // Load only the latest followup to save memory
-            'Followup' => fn($q) => $q->latest()->limit(1)
+            'Followup' => fn($q) => $q->latest()->limit(1),
         ])
-        // Let SQL do the counting instead of PHP
-        ->withCount([
-            'Followup as total_followups',
-            'Followup as delayed_followups' => fn($q) => $q->where('delay', 1)
-        ]);
+            // Let SQL do the counting instead of PHP
+            ->withCount(['Followup as total_followups', 'Followup as delayed_followups' => fn($q) => $q->where('delay', 1)]);
 
-    // 3. Apply Role Scoping
-    $query->when($user && $user->hasRole(['BDE', 'Business Development Intern']), function ($q) use ($user) {
-        $q->where('assigned_user_id', $user->id);
-    });
+        // 3. Apply Role Scoping
+        $query->when($user && $user->hasRole(['BDE', 'Business Development Intern']), function ($q) use ($user) {
+            $q->where('assigned_user_id', $user->id);
+        });
 
-    // 4. Apply Filters & Ordering
-    $this->applyFilters($query, $request);
-    $query->orderByDesc('id');
+        // 4. Apply Filters & Ordering
+        $this->applyFilters($query, $request);
+        $query->orderByDesc('id');
 
-    // 5. Build DataTable
-    return DataTables::of($query)
-        ->addIndexColumn()
-        ->editColumn('client_info', function ($lead) {
-            // Helper variables to keep logic separate from HTML
-            $lead = EncodingHelper::sanitizeUtf8($lead); // Keep your custom helper
-            
-            // Logic
-            $daysDiff = now()->diffInDays($lead->created_at);
-            $maskedMobile = substr($lead->phone, 0, 5) . '******';
-            $categoryName = $lead->category->name ?? 'N/A';
-            
-            // Status Badge Logic
-            $statusBadge = match (true) {
-                $lead->status == 1      => '<span class="badge bg-success">Convert</span>',
-                $lead->lead_status == 1 => '<span class="badge bg-danger">Hot</span>',
-                $lead->lead_status == 2 => '<span class="badge bg-warning">Warm</span>',
-                default                 => '<span class="badge bg-primary">Cold</span>',
-            };
+        // 5. Build DataTable
+        return DataTables::of($query)
+            ->addIndexColumn()
+            ->editColumn('client_info', function ($lead) {
+                // Helper variables to keep logic separate from HTML
+                $lead = EncodingHelper::sanitizeUtf8($lead); // Keep your custom helper
 
-            // Source Logic
-            $leadSource = match ($lead->lead_source) {
-                1 => 'Website', 2 => 'Social Media', 3 => 'Reference', default => 'Bulk Lead',
-            };
+                // Logic
+                $daysDiff = now()->diffInDays($lead->created_at);
+                $maskedMobile = substr($lead->phone, 0, 5) . '******';
+                $categoryName = $lead->category->name ?? 'N/A';
 
-            // Edit Button Logic (Using json_encode for safe JS parameters)
-            $editBtn = '';
-            if ($lead->status != 1) {
-                $jsParams = json_encode([
-                    $lead->id, $lead->name, $lead->email, $lead->country, $lead->phone,
-                    $lead->city, $lead->client_category, $lead->website, $lead->domian_expire,
-                    $lead->lead_status, $lead->lead_source, $lead->ref_name, $lead->assigned_user_id
-                ]);
-                // Strip the outer brackets of json_encode to fit your function signature
-                $jsParams = trim($jsParams, '[]'); 
-                $editBtn = "<span class='badge text-dark' style='cursor:pointer' onclick='EditLead($jsParams)'>Edit</span>";
-            }
+                // Status Badge Logic
+                $statusBadge = match (true) {
+                    $lead->status == 1 => '<span class="badge bg-success">Convert</span>',
+                    $lead->lead_status == 1 => '<span class="badge bg-danger">Hot</span>',
+                    $lead->lead_status == 2 => '<span class="badge bg-warning">Warm</span>',
+                    default => '<span class="badge bg-primary">Cold</span>',
+                };
 
-            // Followup Delay Logic
-            $delayBadge = '';
-            $lastFollowup = $lead->Followup->first(); // Since we limited eager load to 1
-            if ($lastFollowup && $lastFollowup->next_date < now()) {
-                $daysLate = now()->diffInDays($lastFollowup->next_date);
-                $delayBadge = "<span class='badge bg-danger'>Last followup expired: $daysLate days ago</span>";
-            }
+                // Source Logic
+                $leadSource = match ($lead->lead_source) {
+                    1 => 'Website',
+                    2 => 'Social Media',
+                    3 => 'Reference',
+                    default => 'Bulk Lead',
+                };
 
-            $emailLink = !empty($lead->email) ? "<small><a href='mailto:{$lead->email}'><i class='bi bi-envelope'></i> {$lead->email}</a></small><br>" : "";
-            $daysAgoBadge = $daysDiff > 1 ? "<span class='badge bg-secondary'>{$daysDiff} Days Ago</span>" : "";
-            $createdAt = $lead->created_at->format('d-m-y H:i:s');
-            $shortName = substr(ucfirst($lead->name), 0, 20) . '..';
+                // Edit Button Logic (Using json_encode for safe JS parameters)
+                $editBtn = '';
+                if ($lead->status != 1) {
+                    $jsParams = json_encode([$lead->id, $lead->name, $lead->email, $lead->country, $lead->phone, $lead->city, $lead->client_category, $lead->website, $lead->domian_expire, $lead->lead_status, $lead->lead_source, $lead->ref_name, $lead->assigned_user_id]);
+                    // Strip the outer brackets of json_encode to fit your function signature
+                    $jsParams = trim($jsParams, '[]');
+                    $editBtn = "<span class='badge text-dark' style='cursor:pointer' onclick='EditLead($jsParams)'>Edit</span>";
+                }
 
-            // Heredoc for clean HTML
-            return <<<HTML
-                <div class='order-md-1'>
-                    <h6 class='mb-1 text-dark fs-15 lead-name fw-bold' data-id='{$lead->id}' data-name='{$lead->name}' style='cursor:pointer'>{$shortName}</h6>
-                    <small class='text-muted'>({$categoryName})</small> | 
-                    <small class='text-muted'>{$editBtn}</small> | 
-                    <small class='badge text-muted bg-muted'>{$leadSource}</small> |  
-                    {$statusBadge} <br>
-                    <small onclick="Followup({$lead->id}, '{$lead->name}', '{$lead->phone}', 0)">
-                        <a href='#'><i class='bi bi-telephone'></i> {$maskedMobile}</a>
-                    </small><br>
-                    {$emailLink}
-                    <small><i class='bi bi-bag-plus'></i> Create Date: {$createdAt}</small>
-                    {$daysAgoBadge}<br>
-                    {$delayBadge}
-                </div>
-HTML;
-        })
-        ->addColumn('service', function ($lead) use ($projectCategories) {
-            if (empty($lead->project_category)) return 'No Service';
-            
-            $ids = json_decode($lead->project_category, true);
-            if (!is_array($ids)) return 'Invalid Data';
+                // Followup Delay Logic
+                $delayBadge = '';
+                $lastFollowup = $lead->Followup->first(); // Since we limited eager load to 1
+                if ($lastFollowup && $lastFollowup->next_date < now()) {
+                    $daysLate = now()->diffInDays($lastFollowup->next_date);
+                    $delayBadge = "<span class='badge bg-danger'>Last followup expired: $daysLate days ago</span>";
+                }
 
-            // Map IDs to names using the pre-fetched array (No DB Query here!)
-            $names = array_map(fn($id) => $projectCategories[$id] ?? '', $ids);
-            return implode('<br>', array_filter($names));
-        })
-        ->addColumn('location', function ($lead) {
-            $country = e($lead->countries->nicename ?? 'N/A');
-            $city = e($lead->city ?? 'N/A');
-            
-            return <<<HTML
-                <strong class='lead-country' data-id='{$lead->id}' data-country='{$country}' style='cursor:pointer'>
-                    <i class='bi bi-geo-alt-fill'></i> {$country}
-                </strong><br>
-                <small class='lead-city' data-id='{$lead->id}' data-city='{$city}' style='cursor:pointer'>({$city})</small>
-HTML;
-        })
-        ->addColumn('followup', function ($lead) {
-            // Logic
-            $countText = $lead->total_followups >= 1 ? "({$lead->total_followups})" : "";
-            
-            $lastFollowupHtml = '';
-            if ($last = $lead->Followup->first()) {
-                $date = $last->created_at->format('d-m-y H:i:s');
-                $lastFollowupHtml = "<small>(Last Follow-up: {$date})</small><br><small>Reason: {$last->reason}</small><br>";
-            }
+                $emailLink = !empty($lead->email) ? "<small><a href='mailto:{$lead->email}'><i class='bi bi-envelope'></i> {$lead->email}</a></small><br>" : '';
+                $daysAgoBadge = $daysDiff > 1 ? "<span class='badge bg-secondary'>{$daysDiff} Days Ago</span>" : '';
+                $createdAt = $lead->created_at->format('d-m-y H:i:s');
+                $shortName = substr(ucfirst($lead->name), 0, 20) . '..';
 
-            $delayedHtml = '';
-            if ($lead->delayed_followups >= 1) {
-                $delayedHtml = "<small class='badge bg-danger'>Delay: {$lead->delayed_followups}</small><br>";
-            }
+                // Heredoc for clean HTML
+                return <<<HTML
+                                <div class='order-md-1'>
+                                    <h6 class='mb-1 text-dark fs-15 lead-name fw-bold' data-id='{$lead->id}' data-name='{$lead->name}' style='cursor:pointer'>{$shortName}</h6>
+                                    <small class='text-muted'>({$categoryName})</small> |
+                                    <small class='text-muted'>{$editBtn}</small> |
+                                    <small class='badge text-muted bg-muted'>{$leadSource}</small> |
+                                    {$statusBadge} <br>
+                                    <small onclick="Followup({$lead->id}, '{$lead->name}', '{$lead->phone}', 0)">
+                                        <a href='#'><i class='bi bi-telephone'></i> {$maskedMobile}</a>
+                                    </small><br>
+                                    {$emailLink}
+                                    <small><i class='bi bi-bag-plus'></i> Create Date: {$createdAt}</small>
+                                    {$daysAgoBadge}<br>
+                                    {$delayBadge}
+                                </div>
+                HTML;
+            })
+            ->addColumn('service', function ($lead) use ($projectCategories) {
+                if (empty($lead->project_category)) {
+                    return 'No Service';
+                }
 
-            return <<<HTML
-                <a class='btn btn-primary btn-sm' onclick="Followup({$lead->id}, '{$lead->name}', '{$lead->phone}', 1)">
-                    Follow up {$countText}
-                </a><br>
-                {$lastFollowupHtml}
-                {$delayedHtml}
-HTML;
-        })
-        ->addColumn('quotation', function ($lead) {
-            $buttons = <<<HTML
-                <a class="btn btn-sm btn-outline-warning" onclick="SendMessage({$lead->id})" data-bs-toggle="tooltip" title="Send Portfolio">
-                    <i class="bi bi-chat-dots"></i> Send Portfolio
-                </a><br>
-                <a class="btn btn-sm btn-outline-primary mt-2" onclick="SendProposal({$lead->id})" data-bs-toggle="tooltip" title="Send Proposal">
-                    <i class="bi bi-file-text"></i> Send Proposal
-                </a><br>
-HTML;
+                $ids = json_decode($lead->project_category, true);
+                if (!is_array($ids)) {
+                    return 'Invalid Data';
+                }
 
-            if ($lead->quotation == 1) {
-                $url = route('crm.prposel.mail.view', ['leadId' => $lead->id]);
-                $date = Carbon::parse($lead->quotation_date)->format('d-m-y H:i:s');
-                $buttons .= <<<HTML
-                    <a href="{$url}" class="mt-2 btn btn-sm btn-outline-success" data-bs-toggle="tooltip" title="Resend Quotation">
-                        <i class="bi bi-file-earmark-arrow-up"></i> Resend Quotation
-                    </a><br>
-                    <small>(Send Date: {$date})</small>
-HTML;
-            } else {
-                $url = route('crm.quotation.client', ['id' => $lead->id]);
-                $buttons .= <<<HTML
-                    <a href="{$url}" class="mt-2 btn btn-sm btn-outline-success" data-bs-toggle="tooltip" title="Send Quotation">
-                        <i class="bi bi-file-earmark-arrow-up"></i> Send Quotation
-                    </a>
-HTML;
-            }
-            return $buttons;
-        })
-        ->addColumn('assigned_info', function ($lead) {
-            $creator = e($lead->user->name ?? 'N/A');
-            $assigner = e($lead->user->name ?? 'N/A'); // Logic check: Is assigner same as creator? 
-            $assignee = e($lead->AssignedUser->name ?? 'N/A'); // Fixed relationship access from assignd_user to AssignedUser
-            
-            return <<<HTML
-                <small>Created by : <strong>{$creator}</strong></small><br>
-                <small>Assigned by: <strong>{$assigner}</strong></small><br>
-                <small>Assigned User: <strong>{$assignee}</strong></small>
-HTML;
-        })
-        ->addColumn('actions', function ($lead) {
-            if ($lead->quotation != 1) return '-';
+                // Map IDs to names using the pre-fetched array (No DB Query here!)
+                $names = array_map(fn($id) => $projectCategories[$id] ?? '', $ids);
+                return implode('<br>', array_filter($names));
+            })
+            ->addColumn('location', function ($lead) {
+                $country = e($lead->countries->nicename ?? 'N/A');
+                $city = e($lead->city ?? 'N/A');
 
-            $viewUrl = route('crm.prposel.mail.view', ['leadId' => $lead->id]);
-            $paidOption = '';
-            
-            if ($lead->invoice) {
-                $paidOption = "<li><a class='dropdown-item' onclick=\"MarkAsPaid({$lead->invoice->id}, {$lead->invoice->balance}, '{$lead->name}')\">Mark as Paid</a></li>";
-            }
+                return <<<HTML
+                                <strong class='lead-country' data-id='{$lead->id}' data-country='{$country}' style='cursor:pointer'>
+                                    <i class='bi bi-geo-alt-fill'></i> {$country}
+                                </strong><br>
+                                <small class='lead-city' data-id='{$lead->id}' data-city='{$city}' style='cursor:pointer'>({$city})</small>
+                HTML;
+            })
+            ->addColumn('followup', function ($lead) {
+                // Logic
+                $countText = $lead->total_followups >= 1 ? "({$lead->total_followups})" : '';
 
-            return <<<HTML
-                <div class='dropdown'>
-                    <button class='btn btn-outline-default' data-bs-toggle='dropdown'><i class='bi bi-three-dots-vertical'></i></button>
-                    <ul class='dropdown-menu'>
-                        {$paidOption}
-                        <li><a class='dropdown-item' href='{$viewUrl}'>View Quotation</a></li>
-                    </ul>
-                </div>
-HTML;
-        })
-        ->rawColumns(['checkbox', 'client_info', 'service', 'location', 'followup', 'quotation', 'assigned_info', 'actions'])
-        ->make(true);
-}
+                $lastFollowupHtml = '';
+                if ($last = $lead->Followup->first()) {
+                    $date = $last->created_at->format('d-m-y H:i:s');
+                    $lastFollowupHtml = "<small>(Last Follow-up: {$date})</small><br><small>Reason: {$last->reason}</small><br>";
+                }
 
+                $delayedHtml = '';
+                if ($lead->delayed_followups >= 1) {
+                    $delayedHtml = "<small class='badge bg-danger'>Delay: {$lead->delayed_followups}</small><br>";
+                }
 
+                return <<<HTML
+                                <a class='btn btn-primary btn-sm' onclick="Followup({$lead->id}, '{$lead->name}', '{$lead->phone}', 1)">
+                                    Follow up {$countText}
+                                </a><br>
+                                {$lastFollowupHtml}
+                                {$delayedHtml}
+                HTML;
+            })
+            ->addColumn('quotation', function ($lead) {
+                $buttons = <<<HTML
+                                <a class="btn btn-sm btn-outline-warning" onclick="SendMessage({$lead->id})" data-bs-toggle="tooltip" title="Send Portfolio">
+                                    <i class="bi bi-chat-dots"></i> Send Portfolio
+                                </a><br>
+                                <a class="btn btn-sm btn-outline-primary mt-2" onclick="SendProposal({$lead->id})" data-bs-toggle="tooltip" title="Send Proposal">
+                                    <i class="bi bi-file-text"></i> Send Proposal
+                                </a><br>
+                HTML;
 
+                if ($lead->quotation == 1) {
+                    $url = route('crm.prposel.mail.view', ['leadId' => $lead->id]);
+                    $date = Carbon::parse($lead->quotation_date)->format('d-m-y H:i:s');
+                    $buttons .= <<<HTML
+                                        <a href="{$url}" class="mt-2 btn btn-sm btn-outline-success" data-bs-toggle="tooltip" title="Resend Quotation">
+                                            <i class="bi bi-file-earmark-arrow-up"></i> Resend Quotation
+                                        </a><br>
+                                        <small>(Send Date: {$date})</small>
+                    HTML;
+                } else {
+                    $url = route('crm.quotation.client', ['id' => $lead->id]);
+                    $buttons .= <<<HTML
+                                        <a href="{$url}" class="mt-2 btn btn-sm btn-outline-success" data-bs-toggle="tooltip" title="Send Quotation">
+                                            <i class="bi bi-file-earmark-arrow-up"></i> Send Quotation
+                                        </a>
+                    HTML;
+                }
+                return $buttons;
+            })
+            ->addColumn('assigned_info', function ($lead) {
+                $creator = e($lead->user->name ?? 'N/A');
+                $assigner = e($lead->user->name ?? 'N/A'); // Logic check: Is assigner same as creator?
+                $assignee = e($lead->AssignedUser->name ?? 'N/A'); // Fixed relationship access from assignd_user to AssignedUser
+
+                return <<<HTML
+                                <small>Created by : <strong>{$creator}</strong></small><br>
+                                <small>Assigned by: <strong>{$assigner}</strong></small><br>
+                                <small>Assigned User: <strong>{$assignee}</strong></small>
+                HTML;
+            })
+            ->addColumn('actions', function ($lead) {
+                if ($lead->quotation != 1) {
+                    return '-';
+                }
+
+                $viewUrl = route('crm.prposel.mail.view', ['leadId' => $lead->id]);
+                $paidOption = '';
+
+                if ($lead->invoice) {
+                    $paidOption = "<li><a class='dropdown-item' onclick=\"MarkAsPaid({$lead->invoice->id}, {$lead->invoice->balance}, '{$lead->name}')\">Mark as Paid</a></li>";
+                }
+
+                return <<<HTML
+                                <div class='dropdown'>
+                                    <button class='btn btn-outline-default' data-bs-toggle='dropdown'><i class='bi bi-three-dots-vertical'></i></button>
+                                    <ul class='dropdown-menu'>
+                                        {$paidOption}
+                                        <li><a class='dropdown-item' href='{$viewUrl}'>View Quotation</a></li>
+                                    </ul>
+                                </div>
+                HTML;
+            })
+            ->rawColumns(['checkbox', 'client_info', 'service', 'location', 'followup', 'quotation', 'assigned_info', 'actions'])
+            ->make(true);
+    }
 
     private function applyFilters($query, Request $request)
     {
-        if ($request->has('search') && $search = $request->input('search')['value']) {
+        if ($request->has('search') && ($search = $request->input('search')['value'])) {
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', '%' . $search . '%')
                     ->orWhere('email', 'like', '%' . $search . '%')
@@ -412,9 +414,9 @@ HTML;
             $this->applyButtonFilter($query, $request->input('lead_sub_type'), $request);
         }
 
-        if ($request->has('start_date') && isset($request->start_date) &&  $request->has('end_date') && isset($request->end_date)) {
+        if ($request->has('start_date') && isset($request->start_date) && $request->has('end_date') && isset($request->end_date)) {
             $start = $request->start_date . ' 00:00:00';
-            $end   = $request->end_date . ' 23:59:59';
+            $end = $request->end_date . ' 23:59:59';
             $query->whereBetween('created_at', [$start, $end]);
         }
     }
@@ -505,7 +507,7 @@ HTML;
                 break;
             case 'today_followup':
                 $query->whereHas('Followup', function ($q) {
-                    $q->whereDate('next_date',  now()->toDateString());
+                    $q->whereDate('next_date', now()->toDateString());
                 });
                 break;
             case 'today_converted':
@@ -531,10 +533,9 @@ HTML;
                     $query->where('status', 1);
                     break;
                 case 'today_fresh_lead':
-                    $query->whereDate('created_at', Carbon::today())
-                        ->whereDoesntHave('Followup', function ($q) {
-                            $q->whereNotNull('lead_id');
-                        });
+                    $query->whereDate('created_at', Carbon::today())->whereDoesntHave('Followup', function ($q) {
+                        $q->whereNotNull('lead_id');
+                    });
                     break;
                 case 'today_invoice':
                     $query->whereDate('created_at', Carbon::today());
@@ -558,16 +559,14 @@ HTML;
                     // dd(3);
                     $query->whereHas('Followup', function ($q) {
                         $q->where(function ($sub) {
-                            $sub->whereDate('created_at', now()->toDateString())
-                                ->where('is_completed', 1);
+                            $sub->whereDate('created_at', now()->toDateString())->where('is_completed', 1);
                         });
                     });
                     break;
                 case 'today_pending_followup':
                     $query->whereHas('Followup', function ($q) {
                         $q->where(function ($sub) {
-                            $sub->whereDate('next_date', now()->toDateString())
-                                ->whereNUll('is_completed');
+                            $sub->whereDate('next_date', now()->toDateString())->whereNUll('is_completed');
                         });
                     });
                     break;
@@ -584,8 +583,7 @@ HTML;
                     // dd(1);
                     $query->whereHas('Followup', function ($q) {
                         $q->where(function ($sub) {
-                            $sub->whereDate('created_at', now()->subDay()->toDateString())
-                                ->orWhereDate('next_date', now()->subDay()->toDateString());
+                            $sub->whereDate('created_at', now()->subDay()->toDateString())->orWhereDate('next_date', now()->subDay()->toDateString());
                         });
                     });
                     break;
@@ -593,8 +591,7 @@ HTML;
                 case 'last_7_days_followup':
                     $query->whereHas('Followup', function ($q) {
                         $q->where(function ($sub) {
-                            $sub->whereBetween('next_date', [now()->subDays(6)->startOfDay(), now()->endOfDay()])
-                                ->orWhereBetween('created_at', [now()->subDays(6)->startOfDay(), now()->endOfDay()]);
+                            $sub->whereBetween('next_date', [now()->subDays(6)->startOfDay(), now()->endOfDay()])->orWhereBetween('created_at', [now()->subDays(6)->startOfDay(), now()->endOfDay()]);
                         });
                     });
                     break;
@@ -602,8 +599,7 @@ HTML;
                 case 'this_month_followup':
                     $query->whereHas('Followup', function ($q) {
                         $q->where(function ($sub) {
-                            $sub->whereBetween('next_date', [now()->startOfMonth(), now()->endOfMonth()])
-                                ->orWhereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()]);
+                            $sub->whereBetween('next_date', [now()->startOfMonth(), now()->endOfMonth()])->orWhereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()]);
                         });
                     });
                     break;
@@ -619,12 +615,12 @@ HTML;
                     break;
                 case 'followup_other':
                     $query->whereHas('Followup', function ($q) {
-                        $q->where('reason', "Other");
+                        $q->where('reason', 'Other');
                     });
                     break;
                 case 'followup_interested':
                     $query->whereHas('lastFollowup', function ($q) {
-                        $q->where('reason', "Interested");
+                        $q->where('reason', 'Interested');
                     });
                     break;
                 case 'today_converted':
@@ -642,30 +638,22 @@ HTML;
                     break;
                 case 'cold_clients':
                     $query->whereHas('Followup', function ($q) {
-                        $q->where('reason', 'call back later')
-                            ->orWhere('reason', 'Not pickup');
+                        $q->where('reason', 'call back later')->orWhere('reason', 'Not pickup');
                     });
                     break;
                 case 'today_cold_clients':
                     $query->whereHas('Followup', function ($q) {
-                        $q->where('reason', 'call back later')
-                            ->orWhere('reason', 'Not pickup')
-                            ->whereDate('next_date', Carbon::today());
+                        $q->where('reason', 'call back later')->orWhere('reason', 'Not pickup')->whereDate('next_date', Carbon::today());
                     });
                     break;
                 case 'rejects':
                     $query->whereHas('Followup', function ($q) {
-                        $q->where('reason', 'Wrong Information')
-                            ->orwhere('reason', 'Work with other company')
-                            ->orwhere('reason', 'Not interested');
+                        $q->where('reason', 'Wrong Information')->orwhere('reason', 'Work with other company')->orwhere('reason', 'Not interested');
                     });
                     break;
                 case 'today_reject':
                     $query->whereHas('Followup', function ($q) {
-                        $q->where('reason', 'Wrong Information')
-                            ->orwhere('reason', 'Work with other company')
-                            ->orwhere('reason', 'Not interested')
-                            ->whereDate('created_at', Carbon::today());
+                        $q->where('reason', 'Wrong Information')->orwhere('reason', 'Work with other company')->orwhere('reason', 'Not interested')->whereDate('created_at', Carbon::today());
                     });
                     break;
                 case 'reject_wrong_info':
@@ -690,47 +678,40 @@ HTML;
                     break;
                 case 'delay':
                     $query->whereHas('Followup', function ($q) {
-                        $q->where('delay', 1)
-                            ->orWhere('is_completed', '!=', 1);
+                        $q->where('delay', 1)->orWhere('is_completed', '!=', 1);
                     });
                     break;
                 case 'today_delay':
                     // dd(1);
                     $query->whereHas('Followup', function ($q) {
                         $q->where(function ($query) {
-                            $query->where('delay', 1)
-                                ->orWhere('is_completed', '!=', 1);
+                            $query->where('delay', 1)->orWhere('is_completed', '!=', 1);
                         })->where('next_date', Carbon::today());
                     });
                     break;
                 case 'delay_1_days':
                     $query->whereHas('Followup', function ($q) {
-                        $q->where('delay', 1)
-                            ->orWhere('is_completed', '!=', 1);
+                        $q->where('delay', 1)->orWhere('is_completed', '!=', 1);
                     });
                     break;
                 case 'delay_2_days':
                     $query->whereHas('Followup', function ($q) {
-                        $q->where('delay', 1)
-                            ->orWhere('is_completed', '!=', 1);
+                        $q->where('delay', 1)->orWhere('is_completed', '!=', 1);
                     });
                     break;
                 case 'delay_3_days':
                     $query->whereHas('Followup', function ($q) {
-                        $q->where('delay', 1)
-                            ->orWhere('is_completed', '!=', 1);
+                        $q->where('delay', 1)->orWhere('is_completed', '!=', 1);
                     });
                     break;
                 case 'delay_4_days':
                     $query->whereHas('Followup', function ($q) {
-                        $q->where('delay', 1)
-                            ->orWhere('is_completed', '!=', 1);
+                        $q->where('delay', 1)->orWhere('is_completed', '!=', 1);
                     });
                     break;
                 case 'delay_5+_days+':
                     $query->whereHas('Followup', function ($q) {
-                        $q->where('delay', 1)
-                            ->orWhere('is_completed', '!=', 1);
+                        $q->where('delay', 1)->orWhere('is_completed', '!=', 1);
                     });
                     break;
                 default:
@@ -781,125 +762,127 @@ HTML;
             $userId = $user->id;
             # btn filter
             $data['total_leads'] = Lead::where(function ($q) use ($userId) {
-                $q->where('user_id', $userId)
-                    ->orWhere('assigned_user_id', $userId);
+                $q->where('user_id', $userId)->orWhere('assigned_user_id', $userId);
             })->count();
-
 
             $data['today_leads'] = Lead::where('created_at', '>=', Carbon::today())
                 ->where(function ($q) use ($userId) {
-                    $q->where('user_id', $userId)
-                        ->orWhere('assigned_by', $userId);
-                })->count();
+                    $q->where('user_id', $userId)->orWhere('assigned_by', $userId);
+                })
+                ->count();
             $data['month_leads'] = Lead::where('created_at', '>=', Carbon::now()->startOfMonth())
                 ->where(function ($q) use ($userId) {
-                    $q->where('user_id', $userId)
-                        ->orWhere('assigned_by', $userId);
-                })->count();
+                    $q->where('user_id', $userId)->orWhere('assigned_by', $userId);
+                })
+                ->count();
             $data['year_leads'] = Lead::where('created_at', '>=', Carbon::now()->startOfYear())
                 ->where(function ($q) use ($userId) {
-                    $q->where('user_id', $userId)
-                        ->orWhere('assigned_by', $userId);
-                })->count();
+                    $q->where('user_id', $userId)->orWhere('assigned_by', $userId);
+                })
+                ->count();
             $data['convert_leads'] = Lead::where('status', 1)
                 ->where(function ($q) use ($userId) {
-                    $q->where('user_id', $userId)
-                        ->orWhere('assigned_user_id', $userId);
-                })->count();
+                    $q->where('user_id', $userId)->orWhere('assigned_user_id', $userId);
+                })
+                ->count();
 
             //  dd($data['total_leads'] );
-            $data['leads'] = $query->with('countries')->where(function ($q) use ($userId) {
-                $q->where('user_id', $userId)
-                    ->orWhere('assigned_by', $userId);
-            })->orderBy('id', 'desc')->paginate(20);
+            $data['leads'] = $query
+                ->with('countries')
+                ->where(function ($q) use ($userId) {
+                    $q->where('user_id', $userId)->orWhere('assigned_by', $userId);
+                })
+                ->orderBy('id', 'desc')
+                ->paginate(20);
 
             $data['today_fresh'] = Lead::where('status', '!=', 1)
                 ->where('created_at', '>=', Carbon::today())
                 ->where(function ($q) use ($userId) {
-                    $q->where('user_id', $userId)
-                        ->orWhere('assigned_by', $userId);
-                })->count();
+                    $q->where('user_id', $userId)->orWhere('assigned_by', $userId);
+                })
+                ->count();
             $data['fresh_lead'] = Lead::where('status', '!=', 1)
                 ->where(function ($q) use ($userId) {
-                    $q->where('user_id', $userId)
-                        ->orWhere('assigned_by', $userId);
-                })->count();
-            $data['today_proposal'] = DB::table('prposal')->whereNotNull('lead_id')
-                ->where('created_at', '>=', Carbon::today())
-                ->where('user_id', $userId)->count();
-            $data['total_proposal'] = DB::table('prposal')->whereNotNull('lead_id')
-                ->where('user_id', $userId)->count();
-            $data['today_created_followup'] = Followup::whereHas('lead')->where('user_id', $userId)
+                    $q->where('user_id', $userId)->orWhere('assigned_by', $userId);
+                })
+                ->count();
+            $data['today_proposal'] = DB::table('prposal')->whereNotNull('lead_id')->where('created_at', '>=', Carbon::today())->where('user_id', $userId)->count();
+            $data['total_proposal'] = DB::table('prposal')->whereNotNull('lead_id')->where('user_id', $userId)->count();
+            $data['today_created_followup'] = Followup::whereHas('lead')
+                ->where('user_id', $userId)
                 ->where(function ($query) {
                     $query->whereDate('created_at', Carbon::today());
-                })->distinct('lead_id')->count();
-            $data['today_followup'] = Followup::whereHas('lead')->where('user_id', $userId)
+                })
+                ->distinct('lead_id')
+                ->count();
+            $data['today_followup'] = Followup::whereHas('lead')
+                ->where('user_id', $userId)
                 ->where(function ($query) {
                     $query->whereDate('next_date', Carbon::today());
-                })->distinct('lead_id')->count();
-            $data['yesterday_followup'] = Followup::whereHas('lead')->where('user_id', $userId)
-                ->where(function ($query) {
-                    $query->whereDate('created_at', Carbon::yesterday())
-                        ->orwhereDate('next_date', Carbon::yesterday());
                 })
-                ->distinct('lead_id')->count();
+                ->distinct('lead_id')
+                ->count();
+            $data['yesterday_followup'] = Followup::whereHas('lead')
+                ->where('user_id', $userId)
+                ->where(function ($query) {
+                    $query->whereDate('created_at', Carbon::yesterday())->orwhereDate('next_date', Carbon::yesterday());
+                })
+                ->distinct('lead_id')
+                ->count();
             $data['last7Days_followup'] = Followup::whereHas('lead')
                 ->where('user_id', $userId)
                 ->where(function ($query) {
-                    $query->whereBetween('created_at', [Carbon::now()->subDays(7), Carbon::now()])
-                        ->orWhereBetween('next_date', [Carbon::now()->subDays(7), Carbon::now()]);
+                    $query->whereBetween('created_at', [Carbon::now()->subDays(7), Carbon::now()])->orWhereBetween('next_date', [Carbon::now()->subDays(7), Carbon::now()]);
                 })
                 ->distinct('lead_id')
                 ->count();
             $data['thisMonth_followup'] = Followup::whereHas('lead')
                 ->where('user_id', $userId)
                 ->where(function ($query) {
-                    $query->whereBetween('created_at', [Carbon::now()->startOfMonth(), Carbon::now()])
-                        ->orWhereBetween('next_date', [Carbon::now()->startOfMonth(), Carbon::now()]);
-                })->distinct('lead_id')
+                    $query->whereBetween('created_at', [Carbon::now()->startOfMonth(), Carbon::now()])->orWhereBetween('next_date', [Carbon::now()->startOfMonth(), Carbon::now()]);
+                })
+                ->distinct('lead_id')
                 ->count();
             //   dd($data['today_followup']);
-            $data['total_followup'] = Followup::whereHas('lead')->whereNotIn('reason', ['Work with other company', 'Wrong Information', 'Not interested'])->where('user_id', $userId)->distinct('lead_id')->count();
-            // dd($data['total_followup']);
-            $data['followup_today'] = Followup::whereNotNull('lead_id')
-                ->where('next_date', Carbon::today())
+            $data['total_followup'] = Followup::whereHas('lead')
+                ->whereNotIn('reason', ['Work with other company', 'Wrong Information', 'Not interested'])
                 ->where('user_id', $userId)
+                ->distinct('lead_id')
                 ->count();
+            // dd($data['total_followup']);
+            $data['followup_today'] = Followup::whereNotNull('lead_id')->where('next_date', Carbon::today())->where('user_id', $userId)->count();
             // $data['followup_today'] = Followup::whereNotNull('lead_id')
             //                                     ->where('next_date', Carbon::today())
             //                                     ->where('user_id', $userId)
             //                                     ->count();
-            $data['today_complated_followup'] =  Followup::whereHas('lead')
-                ->where('is_completed', 1)
-                ->where('user_id', $userId)
-                ->where('next_date', Carbon::today())->count();
-            $data['today_pending_followup'] =  Followup::whereHas('lead')
-                ->where('is_completed', '!=', 1)
-                ->where('user_id', $userId)
-                ->whereDate('next_date', Carbon::today())->count();
-
+            $data['today_complated_followup'] = Followup::whereHas('lead')->where('is_completed', 1)->where('user_id', $userId)->where('next_date', Carbon::today())->count();
+            $data['today_pending_followup'] = Followup::whereHas('lead')->where('is_completed', '!=', 1)->where('user_id', $userId)->whereDate('next_date', Carbon::today())->count();
 
             $data['total_amount'] = 0;
-
 
             $data['total_revenue'] = 0;
             $data['today_converted'] = Lead::where('status', 1)
                 ->whereDate('created_at', Carbon::today())
                 ->where(function ($q) use ($userId) {
-                    $q->where('user_id', $userId)
-                        ->orWhere('assigned_by', $userId);
-                })->count();
+                    $q->where('user_id', $userId)->orWhere('assigned_by', $userId);
+                })
+                ->count();
 
             $data['delay'] = Followup::whereHas('lead')
                 ->where(function ($query) {
-                    $query->where('delay', 1)
-                        ->orWhere('is_completed', '!=', 1);
+                    $query->where('delay', 1)->orWhere('is_completed', '!=', 1);
                 })
                 ->where('user_id', auth()->user()->id)
                 ->distinct('lead_id')
                 ->count();
 
-            $data['today_delay'] = Followup::whereHas('lead')->where('next_date', Carbon::today())->where('delay', 1)->orWhere('is_completed', '!=', 1)->where('user_id', auth()->user()->id)->distinct('lead_id')->count();
+            $data['today_delay'] = Followup::whereHas('lead')
+                ->where('next_date', Carbon::today())
+                ->where('delay', 1)
+                ->orWhere('is_completed', '!=', 1)
+                ->where('user_id', auth()->user()->id)
+                ->distinct('lead_id')
+                ->count();
             // $data['total_revenue'] = Payment::where('lead_id', $query->id)
             //                                 ->whereDate('created_at', Carbon::today())
             //                                 ->sum('amount');
@@ -910,74 +893,101 @@ HTML;
                 })
                 ->count();
             // today fresh lead
-            $data['today_freshLead'] = Lead::whereDate('created_at', Carbon::today())->where('assigned_by', auth()->user()->id)
+            $data['today_freshLead'] = Lead::whereDate('created_at', Carbon::today())
+                ->where('assigned_by', auth()->user()->id)
                 ->whereDoesntHave('Followup', function ($q) {
                     $q->whereNotNull('lead_id');
                 })
                 ->count();
 
-            FollowUp::where('reason', 'Wrong Information')->whereDate('created_at', today())
+            FollowUp::where('reason', 'Wrong Information')
+                ->whereDate('created_at', today())
                 ->whereHas('lead', function ($query) {
                     $query->where('assigned_by', auth()->user()->id);
-                })->distinct('lead_id')
+                })
+                ->distinct('lead_id')
                 ->count();
 
-            $data['today_total_reject'] = FollowUp::where('reason', 'Wrong Information')->whereDate('created_at', today())
+            $data['today_total_reject'] = FollowUp::where('reason', 'Wrong Information')
+                ->whereDate('created_at', today())
                 ->whereHas('lead', function ($query) {
                     $query->where('assigned_by', auth()->user()->id);
-                })->distinct('lead_id')
+                })
+                ->distinct('lead_id')
                 ->count();
 
             $data['followupPaymentToday'] = FollowUp::where('reason', 'Payment Tomorrow')
                 ->whereHas('lead', function ($query) {
                     $query->where('assigned_by', auth()->user()->id);
-                })->distinct('lead_id')
+                })
+                ->distinct('lead_id')
                 ->count();
-            $data['total_reject'] = FollowUp::where('reason', 'Wrong Information')->orWhere('reason', 'Work with other company')->orWhere('reason', 'Not interested')
+            $data['total_reject'] = FollowUp::where('reason', 'Wrong Information')
+                ->orWhere('reason', 'Work with other company')
+                ->orWhere('reason', 'Not interested')
                 ->whereHas('lead', function ($query) {
                     $query->where('assigned_by', auth()->user()->id);
-                })->distinct('lead_id')
+                })
+                ->distinct('lead_id')
                 ->count();
             $data['reject_wrong_info_count'] = FollowUp::where('reason', 'Wrong Information')
                 ->whereHas('lead', function ($query) {
                     $query->where('assigned_by', auth()->user()->id);
-                })->distinct('lead_id')
+                })
+                ->distinct('lead_id')
                 ->count();
             $data['reject_other_company_count'] = FollowUp::where('reason', 'Work with other company')
                 ->whereHas('lead', function ($query) {
                     $query->where('assigned_by', auth()->user()->id);
-                })->distinct('lead_id')
+                })
+                ->distinct('lead_id')
                 ->count();
             $data['reject_not_intersted_count'] = FollowUp::where('reason', 'Not interested')
                 ->whereHas('lead', function ($query) {
                     $query->where('assigned_by', auth()->user()->id);
-                })->distinct('lead_id')
+                })
+                ->distinct('lead_id')
                 ->count();
 
-            $data['cold_clients'] = Followup::where('reason', 'call back later')->orWhere('reason', 'Not pickup')
+            $data['cold_clients'] = Followup::where('reason', 'call back later')
+                ->orWhere('reason', 'Not pickup')
                 ->whereHas('lead', function ($query) {
                     $query->where('assigned_by', auth()->user()->id);
-                })->distinct('lead_id')->count();
-            $data['today_cold_clients'] = Followup::where('reason', 'call back later')->whereDate('created_at', Carbon::today())->orWhere('reason', 'Not pickup')
+                })
+                ->distinct('lead_id')
+                ->count();
+            $data['today_cold_clients'] = Followup::where('reason', 'call back later')
+                ->whereDate('created_at', Carbon::today())
+                ->orWhere('reason', 'Not pickup')
                 ->whereHas('lead', function ($query) {
                     $query->where('assigned_by', auth()->user()->id);
-                })->distinct('lead_id')->count();
+                })
+                ->distinct('lead_id')
+                ->count();
             $data['followupPending'] = Followup::where('is_completed', '=!', 1)
                 ->whereHas('lead', function ($query) {
                     $query->where('assigned_by', auth()->user()->id);
-                })->distinct('lead_id')->count();
+                })
+                ->distinct('lead_id')
+                ->count();
             $data['followupCompleted'] = Followup::where('is_completed', 1)
                 ->whereHas('lead', function ($query) {
                     $query->where('assigned_by', auth()->user()->id);
-                })->distinct('lead_id')->count();
+                })
+                ->distinct('lead_id')
+                ->count();
             $data['followupOther'] = Followup::where('reason', 'Other')
                 ->whereHas('lead', function ($query) {
                     $query->where('assigned_by', auth()->user()->id);
-                })->distinct('lead_id')->count();
+                })
+                ->distinct('lead_id')
+                ->count();
             $data['followupInterested'] = Followup::where('reason', 'Interested')
                 ->whereHas('lead', function ($query) {
                     $query->where('assigned_by', auth()->user()->id);
-                })->distinct('lead_id')->count();
+                })
+                ->distinct('lead_id')
+                ->count();
         } else {
             $data['today_leads'] = Lead::where('created_at', '>=', Carbon::today())->count();
             $data['month_leads'] = Lead::where('created_at', '>=', Carbon::now()->startOfMonth())->count();
@@ -991,39 +1001,42 @@ HTML;
             $data['total_proposal'] = DB::table('prposal')->whereNotNull('lead_id')->count();
             $data['today_created_followup'] = Followup::whereHas('lead')->distinct('lead_id')->whereDate('created_at', Carbon::today())->count();
             $data['today_followup'] = Followup::whereHas('lead')->distinct('lead_id')->whereDate('next_date', Carbon::today())->count();
-            $data['total_followup'] = Followup::whereHas('lead')->whereNotIn('reason', ['Work with other company', 'Wrong Information', 'Not interested'])->distinct('lead_id')->count();
+            $data['total_followup'] = Followup::whereHas('lead')
+                ->whereNotIn('reason', ['Work with other company', 'Wrong Information', 'Not interested'])
+                ->distinct('lead_id')
+                ->count();
             $data['yesterday_followup'] = Followup::whereHas('lead')->whereDate('created_at', Carbon::yesterday())->orwhereDate('next_date', Carbon::yesterday())->distinct('lead_id')->count();
-            $data['last7Days_followup'] = Followup::whereHas('lead')->where(function ($query) {
-                $query->whereBetween('created_at', [Carbon::now()->subDays(7), Carbon::now()])
-                    ->orWhereBetween('next_date', [Carbon::now()->subDays(7), Carbon::now()]);
-            })->distinct('lead_id')->count();
-            $data['thisMonth_followup'] = Followup::whereHas('lead')->where(function ($query) {
-                $query->whereBetween('created_at', [Carbon::now()->startOfMonth(), Carbon::now()])
-                    ->orWhereBetween('next_date', [Carbon::now()->startOfMonth(), Carbon::now()]);
-            })->distinct('lead_id')->count();
+            $data['last7Days_followup'] = Followup::whereHas('lead')
+                ->where(function ($query) {
+                    $query->whereBetween('created_at', [Carbon::now()->subDays(7), Carbon::now()])->orWhereBetween('next_date', [Carbon::now()->subDays(7), Carbon::now()]);
+                })
+                ->distinct('lead_id')
+                ->count();
+            $data['thisMonth_followup'] = Followup::whereHas('lead')
+                ->where(function ($query) {
+                    $query->whereBetween('created_at', [Carbon::now()->startOfMonth(), Carbon::now()])->orWhereBetween('next_date', [Carbon::now()->startOfMonth(), Carbon::now()]);
+                })
+                ->distinct('lead_id')
+                ->count();
 
             $data['followup_today'] = $data['today_leads'] + Followup::whereNotNull('lead_id')->whereDate('next_date', Carbon::today())->count();
 
-            $data['today_complated_followup'] =  Followup::whereHas('lead')->where('is_completed', 1)->where('next_date', Carbon::today())->count();
-            $data['today_pending_followup'] =  Followup::whereHas('lead')->whereNUll('is_completed')->whereDate('next_date', Carbon::today())->count();
-            $data['total_amount'] = TotalAmount::whereIn('lead_id', $query->pluck('id'))
-                ->whereDate('created_at', Carbon::today())
-                ->sum('total_amount');
+            $data['today_complated_followup'] = Followup::whereHas('lead')->where('is_completed', 1)->where('next_date', Carbon::today())->count();
+            $data['today_pending_followup'] = Followup::whereHas('lead')->whereNUll('is_completed')->whereDate('next_date', Carbon::today())->count();
+            $data['total_amount'] = TotalAmount::whereIn('lead_id', $query->pluck('id'))->whereDate('created_at', Carbon::today())->sum('total_amount');
             $data['total_revenue'] = Payment::where('lead_id', $query->first()->id ?? 0)
                 ->whereDate('created_at', Carbon::today())
                 ->sum('amount');
             $data['today_converted'] = Lead::where('status', 1)->whereDate('created_at', Carbon::today())->count();
             $data['delay'] = Followup::whereHas('lead')
                 ->where(function ($query) {
-                    $query->where('delay', 1)
-                        ->orWhere('is_completed', '!=', 1);
+                    $query->where('delay', 1)->orWhere('is_completed', '!=', 1);
                 })
                 ->distinct('lead_id')
                 ->count();
             $data['today_delay'] = Followup::whereHas('lead')
                 ->where(function ($query) {
-                    $query->where('delay', 1)
-                        ->orWhere('is_completed', '!=', 1);
+                    $query->where('delay', 1)->orWhere('is_completed', '!=', 1);
                 })
                 ->where('next_date', Carbon::today())
                 ->distinct('lead_id')
@@ -1036,7 +1049,8 @@ HTML;
             $data['today_freshLead'] = Lead::whereDate('created_at', Carbon::today())
                 ->whereDoesntHave('Followup', function ($q) {
                     $q->whereNotNull('lead_id');
-                })->count();
+                })
+                ->count();
 
             $data['today_total_reject'] = Followup::where('reason', 'Wrong Information')->whereDate('created_at', Carbon::today())->distinct('lead_id')->count();
             $data['reject_wrong_info_count'] = Followup::where('reason', 'Wrong Information')->distinct('lead_id')->count();
@@ -1074,9 +1088,12 @@ HTML;
 
         if (in_array('Super-Admin', $userRole) || in_array('Admin', $userRole)) {
             // Retrieve all BDEs
-            $bdeUsers = User::where('is_active', 1)->orderBy('name', 'asc')->whereHas('roles', function ($query) {
-                $query->whereIn('name', ['BDE', 'Business Development Intern']);
-            })->get();
+            $bdeUsers = User::where('is_active', 1)
+                ->orderBy('name', 'asc')
+                ->whereHas('roles', function ($query) {
+                    $query->whereIn('name', ['BDE', 'Business Development Intern']);
+                })
+                ->get();
 
             // Prepare arrays to hold counts
             $bdeReports = [];
@@ -1087,44 +1104,42 @@ HTML;
 
                 $bdeReports[] = [
                     'name' => $bde->name,
-                    'role' =>  $bde->roles()->first()->name,
+                    'role' => $bde->roles()->first()->name,
                     'image' => $bde->image,
                     'email' => $bde->email,
                     'phone' => $bde->phone_no,
                     'id' => $bde->id,
                     'assigned_leads' => Lead::whereDate('created_at', Carbon::today())
                         ->where(function ($q) use ($bdeId) {
-                            $q->where('user_id', $bdeId)
-                                ->orWhere('assigned_user_id', $bdeId);
-                        })->count(),
-                    'followups' => Followup::whereHas('lead')
-                        ->whereDate('created_at', Carbon::today())
-                        ->where('user_id', $bdeId)
-                        ->distinct('lead_id')
+                            $q->where('user_id', $bdeId)->orWhere('assigned_user_id', $bdeId);
+                        })
                         ->count(),
-                    'proposals' =>  Lead::whereDate('proposal_date', Carbon::today())->where('proposal', 1)
+                    'followups' => Followup::whereHas('lead')->whereDate('created_at', Carbon::today())->where('user_id', $bdeId)->distinct('lead_id')->count(),
+                    'proposals' => Lead::whereDate('proposal_date', Carbon::today())
+                        ->where('proposal', 1)
                         ->where(function ($q) use ($bdeId) {
-                            $q->where('user_id', $bdeId)
-                                ->orWhere('assigned_user_id', $bdeId);
-                        })->count(),
-                    'quotation' =>  Lead::whereDate('quotation_date', Carbon::today())->where('quotation', 1)
+                            $q->where('user_id', $bdeId)->orWhere('assigned_user_id', $bdeId);
+                        })
+                        ->count(),
+                    'quotation' => Lead::whereDate('quotation_date', Carbon::today())
+                        ->where('quotation', 1)
                         ->where(function ($q) use ($bdeId) {
-                            $q->where('user_id', $bdeId)
-                                ->orWhere('assigned_user_id', $bdeId);
-                        })->count(),
+                            $q->where('user_id', $bdeId)->orWhere('assigned_user_id', $bdeId);
+                        })
+                        ->count(),
 
                     'converted' => Lead::whereDate('created_at', Carbon::today())
                         ->where('status', 1) // Adjust according to your logic
                         ->where(function ($q) use ($bdeId) {
-                            $q->where('user_id', $bdeId)
-                                ->orWhere('assigned_user_id', $bdeId);
-                        })->count()
+                            $q->where('user_id', $bdeId)->orWhere('assigned_user_id', $bdeId);
+                        })
+                        ->count(),
                 ];
             }
 
             $data = [
                 'users' => $bdeUsers,
-                'bdeReports' => $bdeReports
+                'bdeReports' => $bdeReports,
             ];
         } else {
             // For non Super-Admin/Admin users
@@ -1132,7 +1147,7 @@ HTML;
                 'users' => User::whereHas('roles', function ($query) {
                     $query->where('name', 'BDE');
                 })->get(),
-                'bdeReports' => [] // Return an empty array for non-admins
+                'bdeReports' => [], // Return an empty array for non-admins
             ];
         }
 
@@ -1146,48 +1161,65 @@ HTML;
         $startDate = Carbon::parse($start)->startOfDay();
         $endDate = Carbon::parse($end)->endOfDay();
 
-
         $user = auth()->user();
-        // counts 
+        // counts
         $count = [];
         if ($user && $user->hasRole(['BDE', 'Business Development Intern'])) {
             $count['leads'] = Lead::where(function ($query) use ($startDate, $endDate) {
-                $query->whereBetween('created_at', [$startDate, $endDate])
-                    ->orwhereBetween('assigned_date', [$startDate, $endDate]);
+                $query->whereBetween('created_at', [$startDate, $endDate])->orwhereBetween('assigned_date', [$startDate, $endDate]);
             })
                 ->where('assigned_user_id', $user->id)
                 ->count();
-            $count['proposals'] = Lead::whereBetween('mail_date', [$startDate, $endDate])->where('mail_status', 1)->where('assigned_user_id', $user->id)->count();
-            $count['followups'] =  Followup::whereHas('lead')->where('user_id', $user->id)
+            $count['proposals'] = Lead::whereBetween('mail_date', [$startDate, $endDate])
+                ->where('mail_status', 1)
+                ->where('assigned_user_id', $user->id)
+                ->count();
+            $count['followups'] = Followup::whereHas('lead')
+                ->where('user_id', $user->id)
                 ->where(function ($query) use ($startDate, $endDate) {
                     $query->whereBetween('created_at', [$startDate, $endDate]);
-                })->distinct('lead_id')->count();
+                })
+                ->distinct('lead_id')
+                ->count();
             $count['proposals'] = Lead::whereDate('proposal_date', Carbon::today())->where('proposal', 1)->where('assigned_user_id', $user->id)->count();
             $count['quotation'] = Lead::whereDate('quotation_date', Carbon::today())->where('quotation', 1)->where('assigned_user_id', $user->id)->count();
             $count['delay'] = 0;
-            $count['reject'] =  FollowUp::whereHas('lead')->where('user_id', $user->id)
+            $count['reject'] = FollowUp::whereHas('lead')
+                ->where('user_id', $user->id)
                 ->where(function ($query) use ($startDate, $endDate) {
-                    $query->where('reason', ['Wrong Information', 'Not interested', 'Work with other company'])
-                        ->whereBetween('created_at', [$startDate, $endDate]);
-                })->distinct('lead_id')->count();
+                    $query->where('reason', ['Wrong Information', 'Not interested', 'Work with other company'])->whereBetween('created_at', [$startDate, $endDate]);
+                })
+                ->distinct('lead_id')
+                ->count();
 
             $count['revenue'] = 0;
         } else {
-
-            $count['leads'] =  Lead::whereBetween('created_at', [$startDate, $endDate])->count();
-            $count['followups'] = Followup::whereHas('lead')->whereBetween('created_at', [$startDate, $endDate])->select('lead_id')->distinct()->count();
-            $count['proposals'] = Lead::whereBetween('proposal_date', [$startDate, $endDate])->where('proposal', 1)->count();
-            $count['quotation'] = Lead::whereBetween('quotation_date', [$startDate, $endDate])->where('quotation', 1)->count();
+            $count['leads'] = Lead::whereBetween('created_at', [$startDate, $endDate])->count();
+            $count['followups'] = Followup::whereHas('lead')
+                ->whereBetween('created_at', [$startDate, $endDate])
+                ->select('lead_id')
+                ->distinct()
+                ->count();
+            $count['proposals'] = Lead::whereBetween('proposal_date', [$startDate, $endDate])
+                ->where('proposal', 1)
+                ->count();
+            $count['quotation'] = Lead::whereBetween('quotation_date', [$startDate, $endDate])
+                ->where('quotation', 1)
+                ->count();
             $count['revenue'] = 0;
             $count['delay'] = Followup::whereHas('lead')
                 ->where(function ($query) {
-                    $query->where('delay', 1)
-                        ->orWhere('is_completed', '!=', 1);
+                    $query->where('delay', 1)->orWhere('is_completed', '!=', 1);
                 })
                 ->whereBetween('next_date', [$startDate, $endDate])
                 ->distinct('lead_id')
                 ->count();
-            $count['reject'] = Followup::whereHas('lead')->whereIn('reason', ['Wrong Information', 'Not interested', 'Work with other company'])->whereBetween('created_at', [$startDate, $endDate])->select('lead_id')->distinct()->count();
+            $count['reject'] = Followup::whereHas('lead')
+                ->whereIn('reason', ['Wrong Information', 'Not interested', 'Work with other company'])
+                ->whereBetween('created_at', [$startDate, $endDate])
+                ->select('lead_id')
+                ->distinct()
+                ->count();
         }
         return response()->json($count);
     }
@@ -1198,7 +1230,6 @@ HTML;
         $lead->update(['lead_status' => $status]);
         return redirect()->back()->with('message', 'status Changed !!');
     }
-
 
     public function convert_leads(Request $request)
     {
@@ -1230,8 +1261,6 @@ HTML;
         $leads = $query->orderBy('id', 'desc')->paginate(20);
         return view('admin.crm.my_convert', compact('leads'));
     }
-
-
 
     public function PrposalService(Request $request, $leadId, $id = null)
     {
@@ -1271,7 +1300,6 @@ HTML;
             return redirect()->back()->with('message', 'Service Added successfully.');
         }
     }
-
 
     public function PrposalServiceUpdate(Request $request, $workId, $leadId, $id = null)
     {
@@ -1313,7 +1341,7 @@ HTML;
             }
             $lead = $id ? User::with('service')->find($leadId) : Lead::with('service')->find($leadId);
             $invoice = $id ? ProjectInvoice::where('client_id', $leadId)->first() : ProjectInvoice::where('lead_id', $leadId)->first();
-            $offices =  Office::orderBy('name', 'asc')->get();
+            $offices = Office::orderBy('name', 'asc')->get();
             return view('admin.crm.prposal.invoice', compact('lead', 'invoice', 'amount', 'offices', 'id'));
         } elseif ($request->isMethod('post')) {
             $validator = Validator::make($request->all(), [
@@ -1340,8 +1368,8 @@ HTML;
             $invoice->service_id = $service->id;
             $amount = $request->total_amount;
             $discount = $request->discount;
-            $gstAmount = $amount * $request->gst / 100;
-            $totalAmount = ($amount + $gstAmount) - $discount;
+            $gstAmount = ($amount * $request->gst) / 100;
+            $totalAmount = $amount + $gstAmount - $discount;
             $invoice->subtotal_amount = $amount;
             $invoice->discount = $discount;
             $invoice->gst_amount = $gstAmount;
@@ -1392,15 +1420,6 @@ HTML;
     //     return view('admin.crm.prposal.mail_preview', compact('lead', 'services', 'total','id','office','currency'));
     // }
 
-
-
-
-
-
-
-
-
-
     public function ConvertLeads(Request $request)
     {
         // Initialize the query
@@ -1433,16 +1452,15 @@ HTML;
         return view('admin.crm.convert', compact('leads'));
     }
 
-
     public function payment(Request $request, $leadId, $id = null)
     {
         $validator = Validator::make($request->all(), [
-            'mode'            => 'required|string',
-            'receipt_number'  => 'required|numeric',
-            'desopite_date'   => 'required|date',
-            'amount'          => 'required|numeric|min:0',
-            'remark'          => 'required|string',
-            'image'           => 'required|image|mimes:jpeg,png,jpg,gif|max:2048'
+            'mode' => 'required|string',
+            'receipt_number' => 'required|numeric',
+            'desopite_date' => 'required|date',
+            'amount' => 'required|numeric|min:0',
+            'remark' => 'required|string',
+            'image' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
         ]);
 
         if ($validator->fails()) {
@@ -1461,7 +1479,7 @@ HTML;
             $data = $request->all();
             $data['mode'] = $request->mode;
             $data['amount'] = $request->amount;
-            $data['pending_amount'] = ($totalAmout->total_amount - $request->amount);
+            $data['pending_amount'] = $totalAmout->total_amount - $request->amount;
             $data['invoice_id'] = $lead->prposal->id;
             if ($id) {
                 $data['client_id'] = $leadId;
@@ -1513,7 +1531,6 @@ HTML;
                 $total = TotalAmount::where('lead_id', $leadId)->where('invoice_id', $lead->prposal->id)->first();
             }
 
-
             // return view('admin.crm.prposal.mail', compact('lead', 'services', 'total','id'));
             // Render HTML view
             $html = view('admin.crm.prposal.mail', compact('lead', 'services', 'total', 'id'))->render();
@@ -1549,11 +1566,9 @@ HTML;
             $to = $lead->email;
             $subject = 'Adxventure Billing Invoice';
             $name = strtoupper($lead->name);
-            $message = 'Dear <strong>' . $name . '</strong>,<br><br>' .
-                'Please find attached the invoice for your recent work.<br><br>' .
-                'Thank you for your business.';
+            $message = 'Dear <strong>' . $name . '</strong>,<br><br>' . 'Please find attached the invoice for your recent work.<br><br>' . 'Thank you for your business.';
 
-            $pdfPath1 = "Proposals/Adxventure.pdf";
+            $pdfPath1 = 'Proposals/Adxventure.pdf';
             // File attachments
             $files = [$pdfPath, $pdfPath1];
 
@@ -1598,15 +1613,12 @@ HTML;
         abort(503);
     }
 
-
     public function upsale(Request $request, $id)
     {
         $client = User::findorfail($id);
         $offices = Office::get();
         return view('admin.crm.upsale', compact('client', 'offices'));
     }
-
-
 
     public function createFreshInvoice(Request $request)
     {
@@ -1718,15 +1730,17 @@ HTML;
             }
         } catch (\Exception $e) {
             // Catch any unexpected errors and return a JSON response
-            return response()->json([
-                'error' => 'Something went wrong!',
-                'message' => $e->getMessage()
-            ], 500);  // Return a 500 Internal Server Error
+            return response()->json(
+                [
+                    'error' => 'Something went wrong!',
+                    'message' => $e->getMessage(),
+                ],
+                500,
+            ); // Return a 500 Internal Server Error
         }
         // Redirect to the mail view (adjust the route as needed)
         return redirect()->route('crm.prposel.mail.view', ['leadId' => $invoice->id]);
     }
-
 
     public function createInvoice(Request $request)
     {
@@ -1749,8 +1763,9 @@ HTML;
 
         // Return validation errors if any
         if ($validator->fails()) {
-            return redirect()->back()
-                ->withErrors($validator)   // send validation errors
+            return redirect()
+                ->back()
+                ->withErrors($validator) // send validation errors
                 ->withInput();
         }
 
@@ -1788,7 +1803,6 @@ HTML;
         return response()->json(['error' => 'Invoice creation failed.']);
     }
 
-
     public function viewMail($leadId, $id = null)
     {
         $invoice = ProjectInvoice::with('lead', 'Office', 'service', 'client')->find($leadId);
@@ -1800,19 +1814,22 @@ HTML;
         }
     }
 
-
     public function mail(Request $request, $invoiceId, $id = null)
     {
         $invoice = ProjectInvoice::with('lead', 'Office', 'service', 'client')->findorfail($invoiceId);
 
         // Validate the request for mail and WhatsApp options
         if (empty($request->send_mail) && empty($request->send_whatsapp)) {
-            $validator = Validator::make($request->all(), [
-                'send_mail' => 'required_without_all:send_whatsapp',
-                'send_whatsapp' => 'required_without_all:send_mail',
-            ], [
-                'required_without_all' => 'Please select at least one option: Mail or WhatsApp.',
-            ]);
+            $validator = Validator::make(
+                $request->all(),
+                [
+                    'send_mail' => 'required_without_all:send_whatsapp',
+                    'send_whatsapp' => 'required_without_all:send_mail',
+                ],
+                [
+                    'required_without_all' => 'Please select at least one option: Mail or WhatsApp.',
+                ],
+            );
 
             if ($validator->fails()) {
                 return response()->json(['errors' => $validator->errors()]);
@@ -1838,9 +1855,7 @@ HTML;
 
             // Check if the file is provided and handle it properly
             if ($file = $request->file('custome_pdf')) {
-                $fileName = $id == 1
-                    ? $invoice->client->email . '_proposal_' . $dateTime . '.' . $file->getClientOriginalExtension()
-                    : $invoice->lead->email . '_proposal_' . $dateTime . '.' . $file->getClientOriginalExtension();
+                $fileName = $id == 1 ? $invoice->client->email . '_proposal_' . $dateTime . '.' . $file->getClientOriginalExtension() : $invoice->lead->email . '_proposal_' . $dateTime . '.' . $file->getClientOriginalExtension();
 
                 if (!file_exists($directoryPath)) {
                     mkdir($directoryPath, 0755, true);
@@ -1866,15 +1881,13 @@ HTML;
         }
 
         // Define PDF paths and directories
-        $pdfPath1 = "Proposals/Adxventure.pdf";
+        $pdfPath1 = 'Proposals/Adxventure.pdf';
         $currentYear = date('Y');
         $currentMonth = date('m');
         $directoryPath = "Proposals/pdf/{$currentYear}/{$currentMonth}";
         $dateTime = date('Ymd_His');
 
-        $pdfFileName = $id == 1
-            ? $invoice->client->name . '_proposal_' . $dateTime . '.pdf'
-            : $invoice->lead->name . '_proposal_' . $dateTime . '.pdf';
+        $pdfFileName = $id == 1 ? $invoice->client->name . '_proposal_' . $dateTime . '.pdf' : $invoice->lead->name . '_proposal_' . $dateTime . '.pdf';
 
         $pdfPath = $directoryPath . '/' . $pdfFileName;
 
@@ -1886,13 +1899,7 @@ HTML;
 
         // Update invoice details
         $invoice->pdf = $pdfPath;
-        $invoice->invoice_no = sprintf(
-            '#00%02d/%s/%d-%02d',
-            $invoice->id,
-            date('M', strtotime($invoice->created_at)),
-            date('Y', strtotime($invoice->created_at)),
-            date('y', strtotime($invoice->created_at)) + 1
-        );
+        $invoice->invoice_no = sprintf('#00%02d/%s/%d-%02d', $invoice->id, date('M', strtotime($invoice->created_at)), date('Y', strtotime($invoice->created_at)), date('y', strtotime($invoice->created_at)) + 1);
         $invoice->save();
 
         if ($id != 1) {
@@ -1904,7 +1911,7 @@ HTML;
 
         // Send email if requested
         if ($request->has('send_mail')) {
-            // $to = 'manjeetchand01@gmail.com'; 
+            // $to = 'manjeetchand01@gmail.com';
             $to = $id == 1 ? $invoice->client->email : $invoice->lead->email;
             $name = strtoupper($id == 1 ? $invoice->client->name : $invoice->lead->name);
 
@@ -1913,7 +1920,7 @@ HTML;
             $files = [$pdfPath, $pdfPath1, $fileUrl];
 
             $headers = "MIME-Version: 1.0\r\n";
-            $headers .= "Content-Type: multipart/mixed; boundary=\"" . $boundary = md5(uniqid(time())) . "\"\r\n";
+            $headers .= "Content-Type: multipart/mixed; boundary=\"" . ($boundary = md5(uniqid(time())) . "\"\r\n");
             $headers .= "From: info@adxventure.com\r\n";
 
             $body = "--{$boundary}\r\n";
@@ -1941,24 +1948,19 @@ HTML;
 
         // Send WhatsApp if requested
         if ($request->has('send_whatsapp')) {
-            $phone = $id == 1
-                ? '91' . $invoice->client->phone_no
-                : str_replace('-', '', $invoice->lead->phone);
+            $phone = $id == 1 ? '91' . $invoice->client->phone_no : str_replace('-', '', $invoice->lead->phone);
             // $phone = '+919997294527';
-            $name = $id == 1
-                ? $invoice->client->name
-                :  $invoice->lead->name;
+            $name = $id == 1 ? $invoice->client->name : $invoice->lead->name;
 
             $api = Api::first();
 
             $params = [
                 'recipient' => $phone,
-                'apikey' =>  $api->key,
+                'apikey' => $api->key,
                 'text' => "Hello {$name}, Greetings from Adxventure. Please find the attached Quotation. Thank you.",
             ];
 
             $apiUrl = $api->url;
-
 
             foreach ([$pdfPath, $pdfPath1, $fileUrl] as $file) {
                 if ($file) {
@@ -1970,11 +1972,8 @@ HTML;
             }
         }
 
-        return $id == 1
-            ? $this->success('Success', '', url('invoice'))
-            : $this->success('Success', '', url('crm/leads'));
+        return $id == 1 ? $this->success('Success', '', url('invoice')) : $this->success('Success', '', url('crm/leads'));
     }
-
 
     public function AllUpsale()
     {
@@ -2002,7 +2001,6 @@ HTML;
         return view('admin.crm.payment', compact('data', 'lead', 'total'));
     }
 
-
     public function bulkUpdate(Request $request)
     {
         // dd($request->all());
@@ -2023,10 +2021,8 @@ HTML;
         return response()->json(['success' => false], 400);
     }
 
-
     public function leadAssigned(Request $request)
     {
-
         $userId = $request->input('assignd_user');
         $leadIds = $request->input('leads', []);
         if ($userId && !empty($leadIds)) {
@@ -2044,7 +2040,6 @@ HTML;
         return response()->json(['success' => false], 400);
     }
 
-
     public function prposal($id, $status = null)
     {
         if ($status) {
@@ -2056,7 +2051,6 @@ HTML;
         }
         return view('admin.crm.prposal', compact('lead', 'pdfs', 'status'));
     }
-
 
     public function converted_leads()
     {
@@ -2071,16 +2065,13 @@ HTML;
         // Loop through each lead to get the corresponding projects
         foreach ($leads as $lead) {
             // Fetch projects for the client associated with the lead
-            $clientProjects = projects::with('client', 'category', 'work')
-                ->where('client_id', $lead->client_id)
-                ->get();
+            $clientProjects = projects::with('client', 'category', 'work')->where('client_id', $lead->client_id)->get();
 
             // Merge the projects into the collection
             $projects = $projects->merge($clientProjects);
         }
         return view('admin.crm.converted', compact('projects'));
     }
-
 
     public function today_proposal()
     {
@@ -2104,8 +2095,7 @@ HTML;
                     $followups->whereDate('created_at', Carbon::today());
                     break;
                 case 'month':
-                    $followups->whereMonth('created_at', Carbon::now()->month)
-                        ->whereYear('created_at', Carbon::now()->year);
+                    $followups->whereMonth('created_at', Carbon::now()->month)->whereYear('created_at', Carbon::now()->year);
                     break;
                 case 'year':
                     $followups->whereYear('created_at', Carbon::now()->year);
@@ -2128,33 +2118,30 @@ HTML;
         return view('admin.crm.today_followup', compact('followups', 'users'));
     }
 
-
     public function today_report(Request $request)
-    { {
-            \Log::info($query->toSql(), $query->getBindings());
-            // Return the table rows as JSON response
-            return response()->json([
-                'tableData' => $tableData,
+    {
+        \Log::info($query->toSql(), $query->getBindings());
+        // Return the table rows as JSON response
+        return response()->json([
+            'tableData' => $tableData,
 
-                'projectCategories' => $projectCategories,
-                'users' => $users,
-                'categories' => $categories,
-                'services' => $services,
-                'client_name' => $request->input('client_name'),
-                'lead_status' => $request->input('lead_status'),
-                'date' => $request->input('date'),
-                'category' => $request->input('category'),
-                'service' => $request->input('service'),
-                'from_date' => $request->input('from_date'),
-                'to_date' => $request->input('to_date'),
-                'templates' => $templates,
-                'messagetemplates' => $messagetemplates,
-                'countries' => $countries,
-                'bdeReports' => $reports,
-            ]);
-        }
+            'projectCategories' => $projectCategories,
+            'users' => $users,
+            'categories' => $categories,
+            'services' => $services,
+            'client_name' => $request->input('client_name'),
+            'lead_status' => $request->input('lead_status'),
+            'date' => $request->input('date'),
+            'category' => $request->input('category'),
+            'service' => $request->input('service'),
+            'from_date' => $request->input('from_date'),
+            'to_date' => $request->input('to_date'),
+            'templates' => $templates,
+            'messagetemplates' => $messagetemplates,
+            'countries' => $countries,
+            'bdeReports' => $reports,
+        ]);
     }
-
 
     public function freshsale($id)
     {
@@ -2260,13 +2247,17 @@ HTML;
     public function offer_message(Request $request)
     {
         # 1 validate data
-        $validator = Validator::make($request->all(), [
-            'message_user' => 'required|numeric',
-            'sendbywhatshapp' => 'required_without_all:sendbyemail',
-            'sendbyemail' => 'required_without_all:sendbywhatshapp',
-        ], [
-            'required_without_all' => 'Please select at least one option: Mail or WhatsApp.',
-        ]);
+        $validator = Validator::make(
+            $request->all(),
+            [
+                'message_user' => 'required|numeric',
+                'sendbywhatshapp' => 'required_without_all:sendbyemail',
+                'sendbyemail' => 'required_without_all:sendbywhatshapp',
+            ],
+            [
+                'required_without_all' => 'Please select at least one option: Mail or WhatsApp.',
+            ],
+        );
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()]);
@@ -2279,16 +2270,13 @@ HTML;
             $phone = $lead->phone;
             $email = $lead->email;
 
-            $subject = "Adxventure Portfolio";
-            $message = "Dear " . $name . ",\n" .
-                "We hope this message finds you well.\n" .
-                "Thank you,\n Adxventure\n";
+            $subject = 'Adxventure Portfolio';
+            $message = 'Dear ' . $name . ",\n" . "We hope this message finds you well.\n" . "Thank you,\n Adxventure\n";
 
-            $fileUrl = asset("portfolio/adxventure_portfolio.pdf");
+            $fileUrl = asset('portfolio/adxventure_portfolio.pdf');
 
             # 3 send by whatshapp
             if ($request->has('sendbywhatshapp')) {
-
                 if (!str_starts_with($phone, '+91')) {
                     $phone = explode('-', $phone);
                     $phone = '91' . $phone['1'];
@@ -2312,7 +2300,6 @@ HTML;
 
             # 4 send by mail
             if ($request->has('sendbyemail')) {
-
                 $to = $email;
                 $boundary = md5(uniqid(time()));
 
@@ -2343,7 +2330,6 @@ HTML;
             return response()->json(['error' => 'Something went wrong !, Please try again later.']);
         }
     }
-
 
     // public function offer_message(Request $request)
     // {
@@ -2442,7 +2428,6 @@ HTML;
     //             ]);
     //         }
 
-
     //         if (!$response->successful()) {
     //             return response()->json(['error' => 'Failed to send message via WhatsApp.']);
     //         }
@@ -2485,7 +2470,6 @@ HTML;
     //     return response()->json(['success' => 'Message sent successfully.']);
     // }
 
-
     public function messages($id)
     {
         $messages = Message::where('lead_id', $id)->orderBy('id', 'desc')->paginate(20);
@@ -2494,14 +2478,18 @@ HTML;
 
     public function cutome_proposal(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'proposal_user' => 'required|numeric',
-            'sendbywhatshapp' => 'required_without_all:sendbyemail',
-            'sendbyemail' => 'required_without_all:sendbywhatshapp',
-            'proposal_type' => 'required|numeric',
-        ], [
-            'required_without_all' => 'Please select at least one option: Mail or WhatsApp.',
-        ]);
+        $validator = Validator::make(
+            $request->all(),
+            [
+                'proposal_user' => 'required|numeric',
+                'sendbywhatshapp' => 'required_without_all:sendbyemail',
+                'sendbyemail' => 'required_without_all:sendbywhatshapp',
+                'proposal_type' => 'required|numeric',
+            ],
+            [
+                'required_without_all' => 'Please select at least one option: Mail or WhatsApp.',
+            ],
+        );
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()]);
@@ -2530,20 +2518,16 @@ HTML;
                             $items = [];
                             preg_match_all('/<li>(.*?)<\/li>/is', $matches[2], $li_matches);
                             foreach ($li_matches[1] as $index => $item) {
-                                $prefix = $list_type === 'ol' ? ($index + 1) . '. ' : '• ';
+                                $prefix = $list_type === 'ol' ? $index + 1 . '. ' : '• ';
                                 $items[] = $prefix . trim(strip_tags($item));
                             }
                             return "\n" . implode("\n", $items) . "\n";
                         },
-                        $raw_message
+                        $raw_message,
                     );
 
                     // Convert <div>, <br>, </p>, etc. to newlines
-                    $raw_message = str_ireplace(
-                        ['<div>', '</div>', '<br>', '<br/>', '<br />', '</p>', '<p>'],
-                        "\n",
-                        $raw_message
-                    );
+                    $raw_message = str_ireplace(['<div>', '</div>', '<br>', '<br/>', '<br />', '</p>', '<p>'], "\n", $raw_message);
 
                     // Strip remaining tags
                     $formatted_message = strip_tags($raw_message);
@@ -2618,7 +2602,6 @@ HTML;
 
                         //     mail($to, $subject, $body, $headers);
                         // }
-
                     }
                 }
 
@@ -2631,8 +2614,6 @@ HTML;
             return $e;
         }
     }
-
-
 
     public function proposalType(Request $request)
     {
@@ -2651,7 +2632,7 @@ HTML;
         }
     }
 
-    // Api Function 
+    // Api Function
     public function api()
     {
         $api = Api::where('user_id', auth()->user()->id)->first();
@@ -2669,15 +2650,15 @@ HTML;
         }
         try {
             $response = Http::post('https://wabot.adxventure.com/api/user/create-api-key', [
-                'userId' => "68886051d5c622185099371d",
+                'userId' => '68886051d5c622185099371d',
                 'mobileNumber' => $request->number,
             ]);
             $data = $response->json();
             if ($data['status']) {
                 Api::create([
-                    'name' => "whatshapp",
+                    'name' => 'whatshapp',
                     'user_id' => auth()->user()->id,
-                    'url' => "http://wabot.adxventure.com/api/user/send-media-message",
+                    'url' => 'http://wabot.adxventure.com/api/user/send-media-message',
                     'key' => $data['apiKey'],
                     'phone' => $request->number,
                     'trial_ends' => $data['trialEndsAt'],
@@ -2694,220 +2675,215 @@ HTML;
     }
 }
 
+// public function index(Request $request)
+// {
+//     $projectCategories = ProjectCategory::all();
+//     $query = $this->initializeLeadQuery();
 
+//     $this->applyFilters($query, $request);
+//     $leadCounts = $this->initializeLeadCounts();
+//     $userRoleData = $this->handleRoleBasedLogic(auth()->user(), $query);
 
-    // public function index(Request $request)
-    // {
-    //     $projectCategories = ProjectCategory::all();
-    //     $query = $this->initializeLeadQuery();
+//     $users = $this->retrieveUsers(auth()->user());
+//     $reports = $this->reports(auth()->user());
+//     $categories = Category::with('lead')->orderBy('name', 'asc')->get();
+//     $services = ProjectCategory::with('lead')->orderBy('name', 'asc')->get();
+//     $templates = Template::where('category','common')->where('type',1)->orderBy('title','asc')->get();
+//     $messagetemplates = Template::where('category','common')->where('type',3)->orderBy('title','asc')->get();
+//     $countries = Country::orderBy('nicename', 'asc')->get(['id', 'nicename', 'phonecode']);
 
-    //     $this->applyFilters($query, $request);
-    //     $leadCounts = $this->initializeLeadCounts();
-    //     $userRoleData = $this->handleRoleBasedLogic(auth()->user(), $query);
-    
-    //     $users = $this->retrieveUsers(auth()->user());
-    //     $reports = $this->reports(auth()->user());
-    //     $categories = Category::with('lead')->orderBy('name', 'asc')->get();
-    //     $services = ProjectCategory::with('lead')->orderBy('name', 'asc')->get();
-    //     $templates = Template::where('category','common')->where('type',1)->orderBy('title','asc')->get();
-    //     $messagetemplates = Template::where('category','common')->where('type',3)->orderBy('title','asc')->get();
-    //     $countries = Country::orderBy('nicename', 'asc')->get(['id', 'nicename', 'phonecode']);
+//     if ($request->today_report == 1) {
+//         $startDate = $request->start_date;
+//         $endDate = $request->end_date;
 
-    //     if ($request->today_report == 1) {
-    //         $startDate = $request->start_date;
-    //         $endDate = $request->end_date;
-    
-    //         if ($startDate === $endDate) {
-    //             $endDate = date('Y-m-d 23:59:59', strtotime($endDate));
-    //             $startDate = date('Y-m-d 00:00:00', strtotime($startDate)); 
-    //         } else {
-    //             $startDate = date('Y-m-d 00:00:00', strtotime($startDate));
-    //             $endDate = date('Y-m-d 23:59:59', strtotime($endDate));
-    //         }
-        
-    //         // Filter the data based on the date range
-    //         $todayLeads = Lead::whereBetween('created_at', [$startDate, $endDate])->count();
-    //         $todayFollowup = Followup::whereBetween('created_at', [$startDate, $endDate])->count();
-    //         $todayProposal = Proposal::whereBetween('created_at', [$startDate, $endDate])->count();
-    //         $todayMessage = Email::whereBetween('created_at', [$startDate, $endDate])->count(); // Assuming 'Message' for SMS
-    //         $todayEmail = Email::whereBetween('created_at', [$startDate, $endDate])->count();
-    //         $todaySms = Email::whereBetween('created_at', [$startDate, $endDate])->count(); // Assuming Sms model
-    //         $todayRevenue = TotalAmount::whereBetween('created_at', [$startDate, $endDate])->sum('pay');
-    //         $todayProposalAmount = TotalAmount::whereBetween('created_at', [$startDate, $endDate])->sum('total_amount');
-    //         $todayExpenss = Expenses::whereBetween('created_at', [$startDate, $endDate])->count();
-    //         return response()->json([
-    //             'today_leads' => $todayLeads,
-    //             'today_followup' => $todayFollowup,
-    //             'today_proposal' => $todayProposal,
-    //             'todayMessage' => $todayMessage,
-    //             'todayEmail' => $todayEmail,
-    //             'todaySms' => $todaySms,
-    //             'todayRevenue' => $todayRevenue,
-    //             'todayProposalAmount' => $todayProposalAmount,
-    //             'todayExpenses' => $todayExpenss,
-    //         ]);
-    //     }else{
-    //         $todayLeads = Lead::whereDate('created_at',Carbon::today())->count();
-    //         $todayFollowup = Followup::whereDate('created_at',Carbon::today())->count();
-    //         $todayProposal = Proposal::whereDate('created_at',Carbon::today())->count();
-    //         $todayMessage = Email::whereDate('created_at', Carbon::today())->count(); // Assuming 'Message' for SMS
-    //         $todayEmail = Email::whereDate('created_at', Carbon::today())->count();
-    //         $todaySms = Email::whereDate('created_at', Carbon::today())->count(); // Assuming Sms model
-    //         $todayRevenue = TotalAmount::whereDate('created_at', Carbon::today())->sum('pay');
-    //         $todayProposalAmount = TotalAmount::whereDate('created_at', Carbon::today())->sum('total_amount');
-    //         $todayExpenss = Expenses::whereDate('created_at', Carbon::today())->count();
-    //     }
-        
-    //     \Log::info($query->toSql(), $query->getBindings());
-        
-    //     if ($request->ajax()) {
-    //         return view('admin.crm.partial.index-table', array_merge([
-    //             'projectCategories' => $projectCategories,
-    //             'users' => $users,
-    //             'categories' => $categories,
-    //             'services' => $services,
-    //             'client_name' => $request->input('client_name'),
-    //             'lead_status' => $request->input('lead_status'),
-    //             'date' => $request->input('date'),
-    //             'category' => $request->input('category'),
-    //             'service' => $request->input('service'),
-    //             'from_date' => $request->input('from_date'),
-    //             'to_date' => $request->input('to_date'),
-    //             'templates' => $templates,
-    //             'messagetemplates' => $messagetemplates,
-    //             'countries' => $countries,
-    //             'bdeReports' => $reports,
-    //         ], $leadCounts, $userRoleData))->render();  
-    //     }
-        
-    //     return view('admin.crm.index', array_merge([
-    //         'projectCategories' => $projectCategories,
-    //         'users' => $users,
-    //         'categories' => $categories,
-    //         'services' => $services,
-    //         'client_name' => $request->input('client_name'),
-    //         'lead_status' => $request->input('lead_status'),
-    //         'date' => $request->input('date'),
-    //         'category' => $request->input('category'),
-    //         'service' => $request->input('service'),
-    //         'from_date' => $request->input('from_date'),
-    //         'to_date' => $request->input('to_date'),
-    //         'templates' => $templates,
-    //         'messagetemplates' => $messagetemplates,
-    //         'countries' => $countries,
-    //         'bdeReports' => $reports,
-    //         'today_leads' => $todayLeads,
-    //         'today_followup' => $todayFollowup,
-    //         'today_proposal' => $todayProposal,
-    //         'todayMessage' => $todayMessage,
-    //         'todayEmail' => $todayEmail,
-    //         'todaySms' => $todaySms,
-    //         'todayRevenue' => $todayRevenue,
-    //         'todayProposalAmount' => $todayProposalAmount,
-    //         'todayExpenses' => $todayExpenss,
-    //     ], $leadCounts, $userRoleData));
-    // }
+//         if ($startDate === $endDate) {
+//             $endDate = date('Y-m-d 23:59:59', strtotime($endDate));
+//             $startDate = date('Y-m-d 00:00:00', strtotime($startDate));
+//         } else {
+//             $startDate = date('Y-m-d 00:00:00', strtotime($startDate));
+//             $endDate = date('Y-m-d 23:59:59', strtotime($endDate));
+//         }
 
+//         // Filter the data based on the date range
+//         $todayLeads = Lead::whereBetween('created_at', [$startDate, $endDate])->count();
+//         $todayFollowup = Followup::whereBetween('created_at', [$startDate, $endDate])->count();
+//         $todayProposal = Proposal::whereBetween('created_at', [$startDate, $endDate])->count();
+//         $todayMessage = Email::whereBetween('created_at', [$startDate, $endDate])->count(); // Assuming 'Message' for SMS
+//         $todayEmail = Email::whereBetween('created_at', [$startDate, $endDate])->count();
+//         $todaySms = Email::whereBetween('created_at', [$startDate, $endDate])->count(); // Assuming Sms model
+//         $todayRevenue = TotalAmount::whereBetween('created_at', [$startDate, $endDate])->sum('pay');
+//         $todayProposalAmount = TotalAmount::whereBetween('created_at', [$startDate, $endDate])->sum('total_amount');
+//         $todayExpenss = Expenses::whereBetween('created_at', [$startDate, $endDate])->count();
+//         return response()->json([
+//             'today_leads' => $todayLeads,
+//             'today_followup' => $todayFollowup,
+//             'today_proposal' => $todayProposal,
+//             'todayMessage' => $todayMessage,
+//             'todayEmail' => $todayEmail,
+//             'todaySms' => $todaySms,
+//             'todayRevenue' => $todayRevenue,
+//             'todayProposalAmount' => $todayProposalAmount,
+//             'todayExpenses' => $todayExpenss,
+//         ]);
+//     }else{
+//         $todayLeads = Lead::whereDate('created_at',Carbon::today())->count();
+//         $todayFollowup = Followup::whereDate('created_at',Carbon::today())->count();
+//         $todayProposal = Proposal::whereDate('created_at',Carbon::today())->count();
+//         $todayMessage = Email::whereDate('created_at', Carbon::today())->count(); // Assuming 'Message' for SMS
+//         $todayEmail = Email::whereDate('created_at', Carbon::today())->count();
+//         $todaySms = Email::whereDate('created_at', Carbon::today())->count(); // Assuming Sms model
+//         $todayRevenue = TotalAmount::whereDate('created_at', Carbon::today())->sum('pay');
+//         $todayProposalAmount = TotalAmount::whereDate('created_at', Carbon::today())->sum('total_amount');
+//         $todayExpenss = Expenses::whereDate('created_at', Carbon::today())->count();
+//     }
 
+//     \Log::info($query->toSql(), $query->getBindings());
 
+//     if ($request->ajax()) {
+//         return view('admin.crm.partial.index-table', array_merge([
+//             'projectCategories' => $projectCategories,
+//             'users' => $users,
+//             'categories' => $categories,
+//             'services' => $services,
+//             'client_name' => $request->input('client_name'),
+//             'lead_status' => $request->input('lead_status'),
+//             'date' => $request->input('date'),
+//             'category' => $request->input('category'),
+//             'service' => $request->input('service'),
+//             'from_date' => $request->input('from_date'),
+//             'to_date' => $request->input('to_date'),
+//             'templates' => $templates,
+//             'messagetemplates' => $messagetemplates,
+//             'countries' => $countries,
+//             'bdeReports' => $reports,
+//         ], $leadCounts, $userRoleData))->render();
+//     }
 
-    // public function index(Request $request)
-    // {
-    //     $projectCategories = ProjectCategory::all();
-    //     $query = $this->initializeLeadQuery();
+//     return view('admin.crm.index', array_merge([
+//         'projectCategories' => $projectCategories,
+//         'users' => $users,
+//         'categories' => $categories,
+//         'services' => $services,
+//         'client_name' => $request->input('client_name'),
+//         'lead_status' => $request->input('lead_status'),
+//         'date' => $request->input('date'),
+//         'category' => $request->input('category'),
+//         'service' => $request->input('service'),
+//         'from_date' => $request->input('from_date'),
+//         'to_date' => $request->input('to_date'),
+//         'templates' => $templates,
+//         'messagetemplates' => $messagetemplates,
+//         'countries' => $countries,
+//         'bdeReports' => $reports,
+//         'today_leads' => $todayLeads,
+//         'today_followup' => $todayFollowup,
+//         'today_proposal' => $todayProposal,
+//         'todayMessage' => $todayMessage,
+//         'todayEmail' => $todayEmail,
+//         'todaySms' => $todaySms,
+//         'todayRevenue' => $todayRevenue,
+//         'todayProposalAmount' => $todayProposalAmount,
+//         'todayExpenses' => $todayExpenss,
+//     ], $leadCounts, $userRoleData));
+// }
 
-    //     $this->applyFilters($query, $request);
-    //     $leadCounts = $this->initializeLeadCounts();
-    //     $userRoleData = $this->handleRoleBasedLogic(auth()->user(), $query);
-    
-    //     $users = $this->retrieveUsers(auth()->user());
-    //     $reports = $this->reports(auth()->user());
-    //     $categories = Category::with('lead')->orderBy('name', 'asc')->get();
-    //     $services = ProjectCategory::with('lead')->orderBy('name', 'asc')->get();
-    //     $templates = Template::where('category','common')->where('type',1)->orderBy('title','asc')->get();
-    //     $messagetemplates = Template::where('category','common')->where('type',3)->orderBy('title','asc')->get();
-    //     $countries = Country::orderBy('nicename', 'asc')->get(['id', 'nicename', 'phonecode']);
+// public function index(Request $request)
+// {
+//     $projectCategories = ProjectCategory::all();
+//     $query = $this->initializeLeadQuery();
 
-    //     if ($request->today_report == 1) {
-    //         $startDate = $request->start_date;
-    //         $endDate = $request->end_date;
-    
-    //         if ($startDate === $endDate) {
-    //             $endDate = date('Y-m-d 23:59:59', strtotime($endDate));
-    //             $startDate = date('Y-m-d 00:00:00', strtotime($startDate)); 
-    //         } else {
-    //             $startDate = date('Y-m-d 00:00:00', strtotime($startDate));
-    //             $endDate = date('Y-m-d 23:59:59', strtotime($endDate));
-    //         }
-        
-    //         // Filter the data based on the date range
-    //         $todayLeads = Lead::whereBetween('created_at', [$startDate, $endDate])->count();
-    //         $todayFollowup = Followup::whereBetween('created_at', [$startDate, $endDate])->count();
-    //         $todayProposal = Proposal::whereBetween('created_at', [$startDate, $endDate])->count();
-    //         $todayMessage = Email::whereBetween('created_at', [$startDate, $endDate])->count(); // Assuming 'Message' for SMS
-    //         $todayEmail = Email::whereBetween('created_at', [$startDate, $endDate])->count();
-    //         $todaySms = Email::whereBetween('created_at', [$startDate, $endDate])->count(); // Assuming Sms model
-    //         $todayRevenue = TotalAmount::whereBetween('created_at', [$startDate, $endDate])->sum('pay');
-    //         $todayProposalAmount = TotalAmount::whereBetween('created_at', [$startDate, $endDate])->sum('total_amount');
-    //         $todayExpenss = Expenses::whereBetween('created_at', [$startDate, $endDate])->count();
-    //         return response()->json([
-    //             'today_leads' => $todayLeads,
-    //             'today_followup' => $todayFollowup,
-    //             'today_proposal' => $todayProposal,
-    //             'todayMessage' => $todayMessage,
-    //             'todayEmail' => $todayEmail,
-    //             'todaySms' => $todaySms,
-    //             'todayRevenue' => $todayRevenue,
-    //             'todayProposalAmount' => $todayProposalAmount,
-    //             'todayExpenses' => $todayExpenss,
-    //         ]);
-    //     }else{
-    //         $todayLeads = Lead::whereDate('created_at',Carbon::today())->count();
-    //         $todayFollowup = Followup::whereDate('created_at',Carbon::today())->count();
-    //         $todayProposal = Proposal::whereDate('created_at',Carbon::today())->count();
-    //         $todayMessage = Email::whereDate('created_at', Carbon::today())->count(); // Assuming 'Message' for SMS
-    //         $todayEmail = Email::whereDate('created_at', Carbon::today())->count();
-    //         $todaySms = Email::whereDate('created_at', Carbon::today())->count(); // Assuming Sms model
-    //         $todayRevenue = TotalAmount::whereDate('created_at', Carbon::today())->sum('pay');
-    //         $todayProposalAmount = TotalAmount::whereDate('created_at', Carbon::today())->sum('total_amount');
-    //         $todayExpenss = Expenses::whereDate('created_at', Carbon::today())->count();
-    //     }
-        
-    //     \Log::info($query->toSql(), $query->getBindings());
+//     $this->applyFilters($query, $request);
+//     $leadCounts = $this->initializeLeadCounts();
+//     $userRoleData = $this->handleRoleBasedLogic(auth()->user(), $query);
 
-    //     if ($request->ajax()) {
-    //         return response()->json([
-    //             'leads' => view('admin.crm.partial.index-table', compact('userRoleData'))->render(),
-    //             'pagination' => view('admin.crm.partial.pagination', [
-    //                 'leads' => $userRoleData->appends($request->except('page')), 
-    //             ])->render(),
-    //         ]);
-    //     }
+//     $users = $this->retrieveUsers(auth()->user());
+//     $reports = $this->reports(auth()->user());
+//     $categories = Category::with('lead')->orderBy('name', 'asc')->get();
+//     $services = ProjectCategory::with('lead')->orderBy('name', 'asc')->get();
+//     $templates = Template::where('category','common')->where('type',1)->orderBy('title','asc')->get();
+//     $messagetemplates = Template::where('category','common')->where('type',3)->orderBy('title','asc')->get();
+//     $countries = Country::orderBy('nicename', 'asc')->get(['id', 'nicename', 'phonecode']);
 
-    //     return view('admin.crm.index', array_merge([
-    //         'projectCategories' => $projectCategories,
-    //         'users' => $users,
-    //         'categories' => $categories,
-    //         'services' => $services,
-    //         'client_name' => $request->input('client_name'),
-    //         'lead_status' => $request->input('lead_status'),
-    //         'date' => $request->input('date'),
-    //         'category' => $request->input('category'),
-    //         'service' => $request->input('service'),
-    //         'from_date' => $request->input('from_date'),
-    //         'to_date' => $request->input('to_date'),
-    //         'templates' => $templates,
-    //         'messagetemplates' => $messagetemplates,
-    //         'countries' => $countries,
-    //         'bdeReports' => $reports,
-    //         'today_leads' => $todayLeads,
-    //         'today_followup' => $todayFollowup,
-    //         'today_proposal' => $todayProposal,
-    //         'todayMessage' => $todayMessage,
-    //         'todayEmail' => $todayEmail,
-    //         'todaySms' => $todaySms,
-    //         'todayRevenue' => $todayRevenue,
-    //         'todayProposalAmount' => $todayProposalAmount,
-    //         'todayExpenses' => $todayExpenss,
-    //     ], $leadCounts, $userRoleData));
-    // }
+//     if ($request->today_report == 1) {
+//         $startDate = $request->start_date;
+//         $endDate = $request->end_date;
+
+//         if ($startDate === $endDate) {
+//             $endDate = date('Y-m-d 23:59:59', strtotime($endDate));
+//             $startDate = date('Y-m-d 00:00:00', strtotime($startDate));
+//         } else {
+//             $startDate = date('Y-m-d 00:00:00', strtotime($startDate));
+//             $endDate = date('Y-m-d 23:59:59', strtotime($endDate));
+//         }
+
+//         // Filter the data based on the date range
+//         $todayLeads = Lead::whereBetween('created_at', [$startDate, $endDate])->count();
+//         $todayFollowup = Followup::whereBetween('created_at', [$startDate, $endDate])->count();
+//         $todayProposal = Proposal::whereBetween('created_at', [$startDate, $endDate])->count();
+//         $todayMessage = Email::whereBetween('created_at', [$startDate, $endDate])->count(); // Assuming 'Message' for SMS
+//         $todayEmail = Email::whereBetween('created_at', [$startDate, $endDate])->count();
+//         $todaySms = Email::whereBetween('created_at', [$startDate, $endDate])->count(); // Assuming Sms model
+//         $todayRevenue = TotalAmount::whereBetween('created_at', [$startDate, $endDate])->sum('pay');
+//         $todayProposalAmount = TotalAmount::whereBetween('created_at', [$startDate, $endDate])->sum('total_amount');
+//         $todayExpenss = Expenses::whereBetween('created_at', [$startDate, $endDate])->count();
+//         return response()->json([
+//             'today_leads' => $todayLeads,
+//             'today_followup' => $todayFollowup,
+//             'today_proposal' => $todayProposal,
+//             'todayMessage' => $todayMessage,
+//             'todayEmail' => $todayEmail,
+//             'todaySms' => $todaySms,
+//             'todayRevenue' => $todayRevenue,
+//             'todayProposalAmount' => $todayProposalAmount,
+//             'todayExpenses' => $todayExpenss,
+//         ]);
+//     }else{
+//         $todayLeads = Lead::whereDate('created_at',Carbon::today())->count();
+//         $todayFollowup = Followup::whereDate('created_at',Carbon::today())->count();
+//         $todayProposal = Proposal::whereDate('created_at',Carbon::today())->count();
+//         $todayMessage = Email::whereDate('created_at', Carbon::today())->count(); // Assuming 'Message' for SMS
+//         $todayEmail = Email::whereDate('created_at', Carbon::today())->count();
+//         $todaySms = Email::whereDate('created_at', Carbon::today())->count(); // Assuming Sms model
+//         $todayRevenue = TotalAmount::whereDate('created_at', Carbon::today())->sum('pay');
+//         $todayProposalAmount = TotalAmount::whereDate('created_at', Carbon::today())->sum('total_amount');
+//         $todayExpenss = Expenses::whereDate('created_at', Carbon::today())->count();
+//     }
+
+//     \Log::info($query->toSql(), $query->getBindings());
+
+//     if ($request->ajax()) {
+//         return response()->json([
+//             'leads' => view('admin.crm.partial.index-table', compact('userRoleData'))->render(),
+//             'pagination' => view('admin.crm.partial.pagination', [
+//                 'leads' => $userRoleData->appends($request->except('page')),
+//             ])->render(),
+//         ]);
+//     }
+
+//     return view('admin.crm.index', array_merge([
+//         'projectCategories' => $projectCategories,
+//         'users' => $users,
+//         'categories' => $categories,
+//         'services' => $services,
+//         'client_name' => $request->input('client_name'),
+//         'lead_status' => $request->input('lead_status'),
+//         'date' => $request->input('date'),
+//         'category' => $request->input('category'),
+//         'service' => $request->input('service'),
+//         'from_date' => $request->input('from_date'),
+//         'to_date' => $request->input('to_date'),
+//         'templates' => $templates,
+//         'messagetemplates' => $messagetemplates,
+//         'countries' => $countries,
+//         'bdeReports' => $reports,
+//         'today_leads' => $todayLeads,
+//         'today_followup' => $todayFollowup,
+//         'today_proposal' => $todayProposal,
+//         'todayMessage' => $todayMessage,
+//         'todayEmail' => $todayEmail,
+//         'todaySms' => $todaySms,
+//         'todayRevenue' => $todayRevenue,
+//         'todayProposalAmount' => $todayProposalAmount,
+//         'todayExpenses' => $todayExpenss,
+//     ], $leadCounts, $userRoleData));
+// }
