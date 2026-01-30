@@ -1,34 +1,34 @@
-import './bootstrap';
-
-// 1. Import and Make Global Immediately
+import './bootstrap'; // Ensures axios/echo are loaded
+// 1. Core Dependencies
 import jQuery from 'jquery';
-window.$ = window.jQuery = jQuery;
-
-import swal from 'sweetalert';
-window.swal = swal;
-
-
+import * as bootstrap from 'bootstrap'; // REQUIRED for Sidebar Dropdowns
 import moment from 'moment';
+
+// Attach to Window
+window.$ = window.jQuery = jQuery;
+window.bootstrap = bootstrap; // Optional: helps if using BS via JS in console
 window.moment = moment;
 
-// 2. Trix Editor
+// 2. UI Components
+import swal from 'sweetalert';
+import toastr from 'toastr';
+import select2 from 'select2';
+import 'daterangepicker';
 import 'trix';
 
-// 3. Select2
-import select2 from 'select2';
+// Attach UI to Window
+window.swal = swal;
+window.toastr = toastr;
+
+// Initialize Select2 Globally
 select2(); 
 
-import toastr from 'toastr';
-window.toastr = toastr;
-// 4. DateRangePicker
-import 'daterangepicker';
-// 5. DataTables & Plugins
+// 3. DataTables & Plugins
 import 'datatables.net-bs5';
 import 'datatables.net-buttons-bs5';
 import 'datatables.net-keytable-bs5';
 import 'datatables.net-responsive-bs5';
 import 'datatables.net-select-bs5';
 
-// 6. CSS Imports
-import 'datatables.net-bs5/css/dataTables.bootstrap5.min.css';
-import 'select2/dist/css/select2.min.css';
+
+// ✅ CORRECT: Imports CSS from node_modules

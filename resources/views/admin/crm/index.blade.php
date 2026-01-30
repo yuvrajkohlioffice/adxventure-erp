@@ -1,6 +1,23 @@
 <x-app-layout>
     @section('title','Leads')
-    
+    <link rel="stylesheet" type="text/css" href="https://unpkg.com/trix@2.0.8/dist/trix.css">
+    <script type="text/javascript" src="https://unpkg.com/trix@2.0.8/dist/trix.umd.min.js"></script>
+    <!-- Datatables css -->
+    <link href="{{asset('assets/vendor/datatable/css/dataTables.bootstrap5.min.css')}}" rel="stylesheet" type="text/css" />
+    <link href="{{asset('assets/vendor/datatable/css/buttons.bootstrap5.min.css')}}" rel="stylesheet" type="text/css" />
+    <link href="{{asset('assets/vendor/datatable/css/keyTable.bootstrap5.min.css')}}" rel="stylesheet" type="text/css" />
+    <link href="{{asset('assets/vendor/datatable/css/responsive.bootstrap5.min.css')}}" rel="stylesheet" type="text/css" />
+    <link href="{{asset('assets/vendor/datatable/css/select.bootstrap5.min.css')}}" rel="stylesheet" type="text/css" />
+    <!-- Select2 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
+    <!-- Select2 Bootstrap 5 Theme CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet">  
+     <!-- Show Counts  -->
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/jquery/latest/jquery.min.js"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/momentjs/latest/moment.min.js"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <style>
         .col-3{
             float:right;
@@ -824,9 +841,15 @@
     </div>
 
     <!-- Datatables js -->
-   
+    <script src="{{asset('assets/vendor/datatable/jquery.dataTables.min.js')}}"></script>
+    <script src="{{asset('assets/vendor/datatable/dataTables.bootstrap5.min.js')}}"></script>
+    <script src="{{asset('assets/vendor/datatable/dataTables.buttons.min.js')}}"></script>
+     <!-- dataTable.responsive -->
+    <script src="{{asset('assets/vendor/datatable/dataTables.responsive.min.js')}}"></script>
+    <script src="{{asset('assets/vendor/datatable/responsive.bootstrap5.min.js')}}"></script>
+      <!-- Select2 JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
     <script>
-        window.addEventListener('load', function() {
         $(function () {
             // Show Data Table Data
             let table = $('#leads-table').DataTable({
@@ -936,10 +959,8 @@
                 $(this).addClass('active');
             });
         });
-    });
     </script>
     <script>
-        window.addEventListener('load', function() {
         $(function () {
             function cb(start, end) {
                 $('#reportrange1 span').html(start.format('MMMM D, YYYY') + ' - ' + end.format('MMMM D, YYYY'));
@@ -984,13 +1005,14 @@
             // Set initial placeholder
             $('#reportrange1 span').html('Search by date');
         });
-    });
+
     </script>
 
     <script>
-        window.addEventListener('load', function() {
         $(document).ready(function () {
-       $('#lead-assigned').on('change', function () {
+
+    // When dropdown changes
+    $('#lead-assigned').on('change', function () {
         let bdeId = $(this).val();
         let bdeName = $("#lead-assigned option:selected").text();
 
@@ -1036,10 +1058,9 @@
                 $('#lead-assigned').val(""); // reset dropdown if cancelled
             }
         });
-      });
-
-      });
     });
+
+});
 
     </script>
 

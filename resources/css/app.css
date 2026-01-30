@@ -1,16 +1,61 @@
-/* Trix */
+/* =========================================
+   1. CORE FRAMEWORKS
+   ========================================= */
+/* Bootstrap 5 Core */
+@import 'bootstrap/dist/css/bootstrap.min.css';
+
+/* jQuery UI (If you use it) */
+@import 'jquery-ui-dist/jquery-ui.min.css';
+
+
+/* =========================================
+   2. ICONS
+   ========================================= */
+/* Bootstrap Icons */
+@import 'bootstrap-icons/font/bootstrap-icons.css';
+
+/* Boxicons (Found in your package.json) */
+@import 'boxicons/css/boxicons.min.css';
+
+
+/* =========================================
+   3. NOTIFICATIONS & ALERTS
+   ========================================= */
+/* Toastr */
+@import 'toastr/build/toastr.min.css';
+
+/* Note: SweetAlert (v2.1.2) injects styles via JS, 
+   so no CSS import is needed here. */
+
+
+/* =========================================
+   4. FORMS & EDITORS
+   ========================================= */
+/* Trix Editor */
 @import 'trix/dist/trix.css';
 
-/* DataTables Bootstrap 5 */
+/* Select2 & Bootstrap 5 Theme */
+@import 'select2/dist/css/select2.min.css';
+@import 'select2-bootstrap-5-theme/dist/select2-bootstrap-5-theme.min.css';
+
+/* Date Pickers */
+@import 'daterangepicker/daterangepicker.css';
+@import 'bootstrap-datepicker/dist/css/bootstrap-datepicker.min.css';
+
+
+/* =========================================
+   5. DATATABLES
+   ========================================= */
+/* Core BS5 Styling */
 @import 'datatables.net-bs5/css/dataTables.bootstrap5.min.css';
+
+/* Extensions */
 @import 'datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css';
 @import 'datatables.net-keytable-bs5/css/keyTable.bootstrap5.min.css';
 @import 'datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css';
 @import 'datatables.net-select-bs5/css/select.bootstrap5.min.css';
 
-/* Select2 */
-@import 'select2/dist/css/select2.min.css';
-@import 'select2-bootstrap-5-theme/dist/select2-bootstrap-5-theme.min.css';
 
-/* DateRangePicker */
-@import 'daterangepicker/daterangepicker.css';
+a{
+    text-decoration: none !important;
+}

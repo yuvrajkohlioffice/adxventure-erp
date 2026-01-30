@@ -223,7 +223,6 @@
 
     <script>
         //Date-range picker 
-        window.addEventListener('load', function() {
         $(document).ready(function() {
             var start = moment();
             var end = moment();
@@ -271,7 +270,6 @@
             });
             cb(start, end);
         });
-    });
     </script>
    
 </x-app-layout>
