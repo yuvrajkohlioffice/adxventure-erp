@@ -3,7 +3,8 @@
     "type": "module",
     "scripts": {
         "dev": "vite",
-        "build": "vite build"
+        "build": "vite build",
+        "preinstall": "lockdown"
     },
     "devDependencies": {
         "@rollup/plugin-inject": "^5.0.5",
@@ -14,6 +15,7 @@
         "daterangepicker": "^3.1.0",
         "jquery": "^3.2.1",
         "laravel-vite-plugin": "^1.0.6",
+        "lockdown": "^0.0.5",
         "moment": "^2.30.1",
         "postcss": "^8.4.49",
         "tailwindcss": "^3.4.17",

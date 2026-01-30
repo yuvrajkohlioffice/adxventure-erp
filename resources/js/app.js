@@ -63,7 +63,7 @@ import 'datatables.net-select-bs5';
 // 5. GLOBAL INITIALIZATION
 // =======================================================================
 $(document).ready(function() {
-    console.log('✅ App.js loaded. jQuery version:', $.fn.jquery);
+   
 
     // 1. Initialize Select2 Globally
     if ($.fn.select2) {

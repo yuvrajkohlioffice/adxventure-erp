@@ -32,7 +32,6 @@
                 return;
             }
             
-            console.log('App initialized successfully.');
             runToastr();
             runGlobalEvents();
             runClock();
