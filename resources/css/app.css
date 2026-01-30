@@ -1,14 +1,16 @@
-@import 'bootstrap/dist/css/bootstrap.min.css';
+/* Trix */
+@import 'trix/dist/trix.css';
 
-/* 2. Import Bootstrap Icons (You just installed this) */
-@import 'bootstrap-icons/font/bootstrap-icons.css';
+/* DataTables Bootstrap 5 */
+@import 'datatables.net-bs5/css/dataTables.bootstrap5.min.css';
+@import 'datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css';
+@import 'datatables.net-keytable-bs5/css/keyTable.bootstrap5.min.css';
+@import 'datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css';
+@import 'datatables.net-select-bs5/css/select.bootstrap5.min.css';
 
-/* 3. Import Boxicons */
-@import 'boxicons/css/boxicons.min.css';
+/* Select2 */
+@import 'select2/dist/css/select2.min.css';
+@import 'select2-bootstrap-5-theme/dist/select2-bootstrap-5-theme.min.css';
 
-/* 4. Import Toastr */
-@import 'toastr/build/toastr.min.css';
-
-/* 5. Import Datepicker styles */
+/* DateRangePicker */
 @import 'daterangepicker/daterangepicker.css';
-@import 'bootstrap-datepicker/dist/css/bootstrap-datepicker.min.css';

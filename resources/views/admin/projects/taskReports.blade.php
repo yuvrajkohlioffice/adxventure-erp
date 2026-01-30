@@ -22,20 +22,19 @@
 
     <!-- End Page Title -->
 
-
+    
 
     @if(false)
 
-    <form action="" method="GET">
+        <form action="" method="GET" >
 
 
 
-        <div class="row" style="margin-top:10px;margin-bottom:20px;">
+        <div class="row"style="margin-top:10px;margin-bottom:20px;" >
 
             <div class="col-md-2">
 
-                <input type="text" class="form-control" name="name" value="{{ request()->name ?? '' }}"
-                    placeholder="Employee Name..." />
+                <input type="text" class="form-control" name="name" value="{{ request()->name ?? '' }}" placeholder="Employee Name..." />
 
             </div>
 
@@ -43,15 +42,15 @@
 
                 <select class="form-control" name="project">
 
-                    <option value="">SELECT PROJECT</option>
+                    <option value="">SELECT  PROJECT</option>
 
                     @if(count($projects) > 0)
 
-                    @foreach($projects as $pro)
+                        @foreach($projects as $pro)
 
-                    <option value="{{ $pro->id }}">{{ $pro->name }}</option>
+                            <option value="{{ $pro->id }}">{{ $pro->name }}</option>
 
-                    @endforeach
+                        @endforeach
 
                     @endif
 
@@ -61,7 +60,7 @@
 
             <div class="col-md-2">
 
-                <input type="text" class="form-control" name="dates" />
+                <input type="text" class="form-control" name="dates"  />
 
             </div>
 
@@ -79,7 +78,7 @@
 
 
 
-        <div class="row" style="margin-bottom:40px;">
+        <div class="row"style="margin-bottom:40px;" >
 
 
 
@@ -95,60 +94,59 @@
 
     <div class="row">
 
+      
 
+            @if(count($data) > 0)
 
-        @if(count($data) > 0)
+                @foreach($data as $project)
 
-        @foreach($data as $project)
+                    <div class="col-md-3" style="margin-top:20px;border-radius:20px;">
 
-        <div class="col-md-3" style="margin-top:20px;border-radius:20px;">
+                        <div class="card">
 
-            <div class="card">
+                        
 
+                            <div class="card-body">
 
+                                <center>
 
-                <div class="card-body">
+                                    <h5 class="card-title">
 
-                    <center>
+                                        <b>{{ $project->name }}</b>
 
-                        <h5 class="card-title">
+                                    </h5>
 
-                            <b>{{ $project->name }}</b>
+                                </center>
 
-                        </h5>
+                    
 
-                    </center>
+                                <span><b>Email :</b> &nbsp; {{ $project->email }}</span><br>
 
+                                <span><b>Phone :</b> &nbsp; {{ $project->phone }}</span><br>
 
+                                <span><b>Website   :</b> &nbsp; {{ $project->website }}</span>
 
-                    <span><b>Email :</b> &nbsp; {{ $project->email }}</span><br>
+                                <span><b>Project Added date   :</b> &nbsp; {{ date('d M,Y',strtotime($project->created_at)) }}</span>
 
-                    <span><b>Phone :</b> &nbsp; {{ $project->phone }}</span><br>
+                                <br><br>
 
-                    <span><b>Website :</b> &nbsp; {{ $project->website }}</span>
+    
 
-                    <span><b>Project Added date :</b> &nbsp; {{ date('d M,Y',strtotime($project->created_at)) }}</span>
+                                <a href="{{ route('project.task.index',$project->id) }}" style="width:100%;" class="btn btn-primary text-white"> All Task ( {{ $project->task_count ?? 0 }}) </a>
 
-                    <br><br>
+                            </div>
 
+                        </div>   
 
+                    </div>
 
-                    <a href="{{ route('project.task.index',$project->id) }}" style="width:100%;"
-                        class="btn btn-primary text-white"> All Task ( {{ $project->task_count ?? 0 }}) </a>
+                @endforeach
 
-                </div>
+            @endif
 
-            </div>
+       
 
-        </div>
-
-        @endforeach
-
-        @endif
-
-
-
-
+        
 
     </div>
 

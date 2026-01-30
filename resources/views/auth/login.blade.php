@@ -143,7 +143,7 @@
 
             <div>
 
-                <x-primary-button>å
+                <x-primary-button>
 
                     {{ __('Log in') }}
 

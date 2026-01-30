@@ -1,29 +1,26 @@
-import './bootstrap'; // Keep Laravel's default bootstrap file if it exists
+import './bootstrap';
 
-// 1. Import jQuery and make it global (Required for Toastr/Datepicker)
-import $ from 'jquery';
-window.$ = window.jQuery = $;
+// 1. jQuery (Required for DataTables, Select2, DateRangePicker)
+import jQuery from 'jquery';
+window.$ = window.jQuery = jQuery;
 
-// 2. Import Bootstrap Bundle (includes Popper)
-import 'bootstrap';
+// 2. Moment.js (Required for DateRangePicker)
+import moment from 'moment';
+window.moment = moment;
 
-// 3. Import Toastr and make it global
-import toastr from 'toastr';
-window.toastr = toastr;
+// 3. Trix Editor
+import 'trix';
 
-// 4. Import Datepickers
-import 'moment'; // dependency for daterangepicker
+// 4. Select2
+import select2 from 'select2';
+select2(); // Initialize Select2
+
+// 5. DateRangePicker
 import 'daterangepicker';
-import 'bootstrap-datepicker';
 
-// 5. Initialize global settings (Optional example)
-$(document).ready(function() {
-    // Example: Initialize all datepickers automatically
-    $('.datepicker').datepicker();
-    
-    // Configure Toastr options if needed
-    toastr.options = {
-        "closeButton": true,
-        "progressBar": true,
-    };
-});
+// 6. DataTables & Plugins
+import 'datatables.net-bs5';
+import 'datatables.net-buttons-bs5';
+import 'datatables.net-keytable-bs5';
+import 'datatables.net-responsive-bs5';
+import 'datatables.net-select-bs5';
