@@ -956,259 +956,263 @@
     </div>
 
 
-   <script type="module">
-$(document).ready(function() {
-    // === 1. DATATABLE INITIALIZATION ===
-    const table = $('#leads-table').DataTable({
-        processing: true,
-        serverSide: true,
-        ordering: false,
-        ajax: {
-            url: "{{ route('crm.data') }}",
-            data: function(d) {
-                d.lead_type = $('#lead-subfilter').val() || $('#lead-type-filter').val();
-                d.country = $('#filter-country').val();
-                d.status = $('#filter-status').val();
-                d.followup = $('#filter-followup').val();
-                d.category = $('#filter-category').val();
-                d.service = $('#filter-service').val();
-                d.proposal = $('#filter-proposal').val();
-                d.quotation = $('#filter-quotation').val();
-                d.bde = $('#filter-bde').val();
-                
-                // Retrieve dates from the picker data attributes
-                const picker = $('#reportrange1').data('daterangepicker');
-                if (picker) {
-                    d.start_date = picker.startDate.format('YYYY-MM-DD');
-                    d.end_date = picker.endDate.format('YYYY-MM-DD');
-                }
-            }
-        },
-        columnDefs: [
-            { targets: '_all', orderable: false, searchable: false },
-            { targets: 0, className: 'text-center' }
-        ],
-        columns: [
-            { data: 'id', render: data => `<input type="checkbox" class="row-checkbox form-check-input" value="${data}">` },
-            { data: 'DT_RowIndex', name: 'DT_RowIndex' },
-            { data: 'client_info', name: 'client_info' },
-            { data: 'service', name: 'service' },
-            { data: 'location', name: 'location' },
-            { data: 'followup', name: 'followup' },
-            { data: 'quotation', name: 'quotation' },
-            { data: 'assigned_info', name: 'assigned_info' },
-            { data: 'actions', name: 'actions' }
-        ],
-        drawCallback: () => $('#selectAll').prop('checked', false)
-    });
-
-    // === 2. FILTERS & DEBOUNCE ===
-    let debounceTimer;
-    const reloadTable = () => {
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(() => table.draw(), 300);
-    };
-
-    $('.datatable-filter, #filter-country, #filter-status, #filter-followup, #filter-category, #filter-service, #filter-proposal, #filter-bde, #filter-quotation')
-        .on('change keyup', reloadTable);
-
-    // === 3. DATERANGEPICKER FIX ===
-    function updateDateLabel(start, end) {
-        $('#reportrange1 span').html(start.format('MMMM D, YYYY') + ' - ' + end.format('MMMM D, YYYY'));
-    }
-
-    $('#reportrange1').daterangepicker({
-        autoUpdateInput: false,
-        locale: { cancelLabel: 'Clear' },
-        ranges: {
-            'Today': [moment(), moment()],
-            'Yesterday': [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
-            'Last 7 Days': [moment().subtract(6, 'days'), moment()],
-            'Last Month': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')],
-            'All Time': [moment().subtract(10, 'years'), moment().add(10, 'years')]
-        }
-    });
-
-    $('#reportrange1').on('apply.daterangepicker', function(ev, picker) {
-        updateDateLabel(picker.startDate, picker.endDate);
-        table.draw();
-    });
-
-    $('#reportrange1').on('cancel.daterangepicker', function() {
-        $('#reportrange1 span').html('Search by date');
-        table.draw();
-    });
-
-    // === 4. BULK ASSIGN LOGIC ===
-    $('#lead-assigned').on('change', function() {
-        const bdeId = $(this).val();
-        const bdeName = $("#lead-assigned option:selected").text();
-        const selectedLeads = $('.row-checkbox:checked').map((_, el) => $(el).val()).get();
-
-        if (!bdeId) return;
-        if (selectedLeads.length === 0) {
-            swal("Wait!", "Please select at least one lead.", "warning");
-            $(this).val("");
-            return;
-        }
-
-        swal({
-            title: "Assign Leads?",
-            text: `Assign ${selectedLeads.length} leads to ${bdeName}?`,
-            icon: "info",
-            buttons: true,
-        }).then((willAssign) => {
-            if (willAssign) {
-                $.ajax({
-                    url: "{{ route('crm.lead.assigned') }}",
-                    method: "POST",
-                    data: { _token: "{{ csrf_token() }}", leads: selectedLeads, assignd_user: bdeId },
-                    success: (res) => {
-                        toastr.success(res.message || "Assigned!");
-                        table.ajax.reload(null, false);
-                        $('#lead-assigned').val("");
-                    },
-                    error: (xhr) => toastr.error("Assignment failed.")
-                });
-            } else {
-                $(this).val("");
-            }
-        });
-    });
-
-    // === 5. CHECKBOX "SELECT ALL" ===
-    $('#selectAll').on('click', function() {
-        $('.row-checkbox').prop('checked', this.checked);
-    });
-});
-</script>
     <script type="module">
-$(document).ready(function() {
-    // 1. Reference the table (ensure it's initialized in the previous block or globally)
-    const leadsTable = $('#leads-table').DataTable();
-
-    // 2. The Callback function to update UI and Data attributes
-    function updateDateDisplay(start, end, label) {
-        if (label === 'All') {
-            $('#reportrange1 span').html('All Time');
-            $('#reportrange1').removeData('start-date').removeData('end-date');
-        } else {
-            $('#reportrange1 span').html(start.format('MMMM D, YYYY') + ' - ' + end.format('MMMM D, YYYY'));
-            $('#reportrange1').data('start-date', start.format('YYYY-MM-DD'));
-            $('#reportrange1').data('end-date', end.format('YYYY-MM-DD'));
-        }
-        leadsTable.draw();
-    }
-
-    // 3. Initialize Picker
-    $('#reportrange1').daterangepicker({
-        autoUpdateInput: false,
-        alwaysShowCalendars: true,
-        locale: {
-            cancelLabel: 'Clear',
-            format: 'YYYY-MM-DD'
-        },
-        ranges: {
-            'All': [moment().subtract(10, 'years'), moment().add(10, 'years')],
-            'Today': [moment(), moment()],
-            'Yesterday': [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
-            'Last 7 Days': [moment().subtract(6, 'days'), moment()],
-            'Last 30 Days': [moment().subtract(29, 'days'), moment()],
-            'This Month': [moment().startOf('month'), moment().endOf('month')],
-            'Last Month': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')]
-        }
-    }, function(start, end, label) {
-        // This handles the selection from the "Ranges" menu
-        updateDateDisplay(start, end, label);
-    });
-
-    // 4. Handle manual date selection (Apply button)
-    $('#reportrange1').on('apply.daterangepicker', function(ev, picker) {
-        // Update hidden inputs if you use them for traditional form submits
-        $('#start_date').val(picker.startDate.format('YYYY-MM-DD'));
-        $('#end_date').val(picker.endDate.format('YYYY-MM-DD'));
-        
-        updateDateDisplay(picker.startDate, picker.endDate, picker.chosenLabel);
-    });
-
-    // 5. Handle "Clear" button
-    $('#reportrange1').on('cancel.daterangepicker', function() {
-        $('#reportrange1 span').html('Search by date');
-        $('#start_date, #end_date').val('');
-        $(this).removeData('start-date').removeData('end-date');
-        leadsTable.draw();
-    });
-
-    // Initial State
-    $('#reportrange1 span').html('Search by date');
-});
-</script>
-   <script type="module">
-$(document).ready(function() {
-    const leadsTable = $('#leads-table').DataTable();
-
-    // Handle dropdown change for Bulk Assignment
-    $('#lead-assigned').on('change', function() {
-        const bdeId = $(this).val();
-        const bdeName = $("#lead-assigned option:selected").text();
-
-        // 1. Validate Selection
-        if (!bdeId) return; // Exit if user selects the placeholder
-
-        const selectedLeads = $('.row-checkbox:checked').map(function() {
-            return $(this).val();
-        }).get();
-
-        if (selectedLeads.length === 0) {
-            swal("Wait!", "Please select at least one lead from the table first.", "warning");
-            $(this).val(""); // Reset dropdown
-            return;
-        }
-
-        // 2. Confirmation Dialog
-        swal({
-            title: "Assign Leads?",
-            text: `You are about to assign ${selectedLeads.length} leads to ${bdeName}.`,
-            icon: "info",
-            buttons: ["Cancel", "Yes, Assign them"],
-            dangerMode: false,
-        }).then((willAssign) => {
-            if (willAssign) {
-                // Show a small "Processing" toast or disable the dropdown
-                $('#lead-assigned').attr('disabled', true);
-
-                $.ajax({
-                    url: "{{ route('crm.lead.assigned') }}",
-                    method: "POST",
-                    data: {
-                        _token: "{{ csrf_token() }}",
-                        leads: selectedLeads,
-                        assignd_user: bdeId
+        $(function() {
+            // Show Data Table Data
+            let table = $('#leads-table').DataTable({
+                processing: true,
+                serverSide: true,
+                ajax: {
+                    url: "{{ route('crm.data') }}",
+                    data: function(d) {
+                        d.lead_type = $('#lead-subfilter').val() || $('#lead-type-filter').val();
+                        d.country = $('#filter-country').val();
+                        d.status = $('#filter-status').val();
+                        d.followup = $('#filter-followup').val();
+                        d.category = $('#filter-category').val();
+                        d.service = $('#filter-service').val();
+                        d.proposal = $('#filter-proposal').val();
+                        d.quotation = $('#filter-quotation').val();
+                        d.bde = $('#filter-bde').val();
+                        d.start_date = $('#reportrange1').data('start-date');
+                        d.end_date = $('#reportrange1').data('end-date');
+                    }
+                },
+                columns: [{
+                        data: 'id',
+                        orderable: false,
+                        searchable: false,
+                        render: function(data) {
+                            return `<input type="checkbox" class="row-checkbox" value="${data}">`;
+                        }
                     },
-                    success: function(res) {
-                        swal("Success!", res.message || "Leads assigned successfully.", "success");
-                        
-                        // Reload Table: null keeps the current page, false prevents reset
-                        leadsTable.ajax.reload(null, false);
-                        
-                        // Reset UI
-                        $('#lead-assigned').val("").removeAttr('disabled');
-                        $('#selectAll').prop('checked', false);
+                    {
+                        data: 'DT_RowIndex',
+                        name: 'DT_RowIndex',
+                        orderable: false,
+                        searchable: false
                     },
-                    error: function(xhr) {
-                        const errorMsg = xhr.responseJSON?.message || "Something went wrong.";
-                        swal("Assignment Failed", errorMsg, "error");
-                        $('#lead-assigned').val("").removeAttr('disabled');
+                    {
+                        data: 'client_info',
+                        name: 'client_info',
+                        orderable: false,
+                        searchable: false
+                    },
+                    {
+                        data: 'service',
+                        name: 'service',
+                        orderable: false,
+                        searchable: false
+                    },
+                    {
+                        data: 'location',
+                        name: 'location',
+                        orderable: false,
+                        searchable: false
+                    },
+                    {
+                        data: 'followup',
+                        name: 'followup',
+                        orderable: false,
+                        searchable: false
+                    },
+                    {
+                        data: 'quotation',
+                        name: 'quotation',
+                        orderable: false,
+                        searchable: false
+                    },
+                    {
+                        data: 'assigned_info',
+                        name: 'assigned_info',
+                        orderable: false,
+                        searchable: false
+                    },
+                    {
+                        data: 'actions',
+                        name: 'actions',
+                        orderable: false,
+                        searchable: false
+                    }
+                ]
+            });
+
+            // 🔹 Select all checkbox logic (works across redraws)
+            $('#selectAll').on('click', function() {
+                $('.row-checkbox').prop('checked', this.checked);
+            });
+
+            $('#leads-table tbody').on('change', '.row-checkbox', function() {
+                if ($('.row-checkbox:checked').length === $('.row-checkbox').length) {
+                    $('#selectAll').prop('checked', true);
+                } else {
+                    $('#selectAll').prop('checked', false);
+                }
+            });
+
+            // 🔹 Reapply selectAll state after table redraw (pagination, filter, etc.)
+            table.on('draw', function() {
+                $('#selectAll').prop('checked', false);
+            });
+            // drop down filter 
+            $('#filter-country,#filter-status,#filter-followup,#filter-category,#filter-service,#filter-proposal,#filter-bde,#filter-quotation')
+                .on('change keyup', function() {
+                    table.draw();
+                });
+
+            // Button  filter
+            $('#filter-buttons .btn').on('click', function() {
+                const type = $(this).data('filter');
+                // console.log(type);
+                $('#lead-type-filter').val(type);
+                $('#lead-subfilter').val('');
+                $('#todayfollowupcondition').html('');
+                table.draw();
+
+                // Optional: Highlight active button
+                $('#filter-buttons .btn').removeClass('active');
+                $(this).addClass('active');
+            });
+
+            // Sub-filter button click with event delegation
+            $(document).on('click', '.sub-filter-section .filter-button', function() {
+                const subType = $(this).data('filter');
+                $('#lead-subfilter').val(subType);
+
+                // Clear and add the followup conditions only if it's 'today_created_followup'
+                if (subType === 'today_created_followup' || subType === 'today_followup' || subType ===
+                    'today_pending_followup') {
+                    $('#todayfollowupcondition').html(`
+                        <a class="filter-button" data-filter="today_created_followup" style="cursor:pointer">
+                            New Followups ({{ $userRoleData['today_created_followup'] ?? '0' }})
+                        </a> 
+                        <a class="filter-button" data-filter="today_followup" style="cursor:pointer">
+                            Today Re Followups ({{ $userRoleData['today_complated_followup'] ?? '0' }}/ {{ $userRoleData['today_followup'] ?? '0' }})
+                        </a> 
+                             <a class="filter-button" data-filter="today_pending_followup" style="cursor:pointer">
+                            Today Pending Followup ({{ $userRoleData['today_pending_followup'] ?? '0' }})
+                        </a>
+                       
+                    `);
+                } else {
+                    $('#todayfollowupcondition').html('');
+                }
+                // <a class="filter-button" data-filter="today_created_followup" style="cursor:pointer">
+                //             Today Followups ({{ $userRoleData['today_created_followup'] ?? '0' }})
+                //         </a> 
+
+                table.draw();
+                // Button UI active
+                $('.sub-filter-section .filter-button').removeClass('active');
+                $(this).addClass('active');
+            });
+        });
+    </script>
+    <script type="module">
+        $(function() {
+            function cb(start, end) {
+                $('#reportrange1 span').html(start.format('MMMM D, YYYY') + ' - ' + end.format('MMMM D, YYYY'));
+                $('#reportrange1').data('start-date', start.format('YYYY-MM-DD'));
+                $('#reportrange1').data('end-date', end.format('YYYY-MM-DD'));
+                $('#leads-table').DataTable().draw();
+            }
+
+            $('#reportrange1').daterangepicker({
+                autoUpdateInput: false, // Don't fill by default
+                locale: {
+                    cancelLabel: 'Clear'
+                },
+                ranges: {
+                    'All': [moment().subtract(10, 'years'), moment().add(10, 'years')],
+                    'Today': [moment(), moment()],
+                    'Yesterday': [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
+                    'Last 7 Days': [moment().subtract(6, 'days'), moment()],
+                    'Last 30 Days': [moment().subtract(29, 'days'), moment()],
+                    'This Month': [moment().startOf('month'), moment().endOf('month')],
+                    'Last Month': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1,
+                        'month').endOf('month')]
+                }
+            }, function(start, end) {
+                // This fires for both quick ranges & manual selection
+                cb(start, end);
+            });
+
+            // // Apply button clicked (also covers quick ranges like "Today")
+            $('#reportrange1').on('apply.daterangepicker', function(ev, picker) {
+                $('#start_date').val(picker.startDate.format('YYYY-MM-DD'));
+                $('#end_date').val(picker.endDate.format('YYYY-MM-DD'));
+                cb(picker.startDate, picker.endDate);
+            });
+
+            // Clear selection
+            $('#reportrange1').on('cancel.daterangepicker', function() {
+                $('#reportrange1 span').html('Search by date');
+                $(this).removeData('start-date').removeData('end-date');
+                $('#leads-table').DataTable().draw();
+            });
+
+            // Set initial placeholder
+            $('#reportrange1 span').html('Search by date');
+        });
+    </script>
+
+    <script>
+        $(document).ready(function() {
+
+            // When dropdown changes
+            $('#lead-assigned').on('change', function() {
+                let bdeId = $(this).val();
+                let bdeName = $("#lead-assigned option:selected").text();
+
+                // Collect selected leads
+                let selectedLeads = $('.row-checkbox:checked').map(function() {
+                    return $(this).val();
+                }).get();
+
+                if (selectedLeads.length === 0) {
+                    swal("No leads selected!", "Please select at least one lead.", "warning");
+                    $(this).val(""); // reset dropdown
+                    return;
+                }
+
+                // Confirmation
+                swal({
+                    title: "Are you sure?",
+                    text: "Assign selected leads to " + bdeName + "?",
+                    icon: "warning",
+                    buttons: true,
+                    dangerMode: true,
+                }).then((willAssign) => {
+                    if (willAssign) {
+                        $.ajax({
+                            url: "{{ route('crm.lead.assigned') }}", // 👈 create this route in Laravel
+                            method: "POST",
+                            data: {
+                                _token: "{{ csrf_token() }}",
+                                leads: selectedLeads,
+                                assignd_user: bdeId
+                            },
+                            success: function(res) {
+                                swal("Success!", res.message ||
+                                    "Leads assigned successfully.", "success");
+                                $('#leads-table').DataTable().ajax.reload(null,
+                                false); // reload without reset page
+                                $('#lead-assigned').val(""); // reset dropdown
+                            },
+                            error: function(xhr) {
+                                swal("Error!", xhr.responseJSON.message ||
+                                    "Something went wrong.", "error");
+                                $('#lead-assigned').val(""); // reset dropdown
+                            }
+                        });
+                    } else {
+                        $('#lead-assigned').val(""); // reset dropdown if cancelled
                     }
                 });
-            } else {
-                // User cancelled
-                $(this).val("");
-            }
+            });
+
         });
-    });
-});
-</script>
+    </script>
 
     @include('admin.crm.partial.script')
 </x-app-layout>

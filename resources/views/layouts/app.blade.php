@@ -13,8 +13,6 @@
     </style>
     <title>@yield('title', config('app.name', 'Laravel'))</title>
 
-    <link rel="stylesheet" href="{{ asset('assets/vendor/bootstrap/css/bootstrap.min.css') }}" />
-
     <link rel="stylesheet" href="{{ asset('assets/css/style.css') }}" />
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 
