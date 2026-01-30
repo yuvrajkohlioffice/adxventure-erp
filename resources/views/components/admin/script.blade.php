@@ -1,6 +1,6 @@
-<script src="{{ asset('custom.js') }}"></script>
+<script src="{{ asset('custom.js') }}" type="module" defer></script>
 {{-- 1. Global Helper Functions --}}
-<script>
+<script type="module">
     // Define busy loader globally
     window.busy = function(show) {
         let $body = $('body');
@@ -22,7 +22,7 @@
 </script>
 
 {{-- 2. Main Application Logic --}}
-<script>
+<script type="module">
     document.addEventListener('DOMContentLoaded', function() {
         
         // Polling function to ensure App.js is fully loaded

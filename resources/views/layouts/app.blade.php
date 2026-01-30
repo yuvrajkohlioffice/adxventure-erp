@@ -6,10 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <!-- Show Counts  -->
-    <script type="text/javascript" src="https://cdn.jsdelivr.net/jquery/latest/jquery.min.js"></script>
-    <script type="text/javascript" src="https://cdn.jsdelivr.net/momentjs/latest/moment.min.js"></script>
-    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
-    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
     <style>
         .chartjs.card {
             height: 335px;
@@ -35,6 +31,9 @@
     <x-admin.sidebar></x-admin.sidebar>
 
     <main id="main" class="main min-vh-100">
+        
+
+
         {{ $slot }}
     </main>
 
@@ -60,6 +59,21 @@
         settingsOverlay.addEventListener('click', closeSettings);
     </script>
 
+<script type="module">
+    // "type=module" is CRITICAL. It forces this to wait for app.js to load.
+    $(document).ready(function() {
+        
+        $('input[name="daterange"]').daterangepicker({
+            opens: 'left',
+            locale: {
+                format: 'YYYY-MM-DD'
+            }
+        }, function(start, end, label) {
+            console.log("A new date selection was made: " + start.format('YYYY-MM-DD') + ' to ' + end.format('YYYY-MM-DD'));
+        });
+
+    });
+</script>
     @yield('script')
     @livewireScripts
 </body>

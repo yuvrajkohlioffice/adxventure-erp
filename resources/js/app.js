@@ -1,37 +1,24 @@
-import './bootstrap'; 
+import './bootstrap';
+import jQuery from 'jquery';
+import moment from 'moment';
 
-import $ from 'jquery';
-window.$ = window.jQuery = $;
+// EXPOSE GLOBALS IMMEDIATELY
+window.$ = window.jQuery = jQuery;
+window.moment = moment; 
 
-// 1. Core Dependencies
-import * as bootstrap from 'bootstrap'; 
-
-// Attach to Window IMMEDIATELY
-window.bootstrap = bootstrap;
-
-// 2. UI Components
+// Now import plugins that depend on jQuery/Moment
+import 'daterangepicker';
+import 'datatables.net-bs5';
+import 'datatables.net-responsive-bs5';
 import swal from 'sweetalert';
 import toastr from 'toastr';
-import select2 from 'select2';
-import 'trix';
 
-// Import BOTH Date libraries used in your project
-import 'daterangepicker'; 
-import 'bootstrap-datepicker'; // Required for $('#datepicker').datepicker()
-
-// Attach Global Tools
 window.swal = swal;
 window.toastr = toastr;
 
-// 3. DataTables
-import 'datatables.net-bs5';
-import 'datatables.net-responsive-bs5';
-
-// 4. Global Init
+// Initialize global UI elements
 $(document).ready(function() {
     if ($.fn.select2) {
-        $('.select2').select2({
-            theme: 'bootstrap-5'
-        });
+        $('.select2').select2({ theme: 'bootstrap-5', width: '100%' });
     }
 });
