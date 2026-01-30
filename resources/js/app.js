@@ -1,26 +1,34 @@
 import './bootstrap';
 
-// 1. jQuery (Required for DataTables, Select2, DateRangePicker)
+// 1. Import and Make Global Immediately
 import jQuery from 'jquery';
 window.$ = window.jQuery = jQuery;
 
-// 2. Moment.js (Required for DateRangePicker)
+import swal from 'sweetalert';
+window.swal = swal;
+
+
 import moment from 'moment';
 window.moment = moment;
 
-// 3. Trix Editor
+// 2. Trix Editor
 import 'trix';
 
-// 4. Select2
+// 3. Select2
 import select2 from 'select2';
-select2(); // Initialize Select2
+select2(); 
 
-// 5. DateRangePicker
+import toastr from 'toastr';
+window.toastr = toastr;
+// 4. DateRangePicker
 import 'daterangepicker';
-
-// 6. DataTables & Plugins
+// 5. DataTables & Plugins
 import 'datatables.net-bs5';
 import 'datatables.net-buttons-bs5';
 import 'datatables.net-keytable-bs5';
 import 'datatables.net-responsive-bs5';
 import 'datatables.net-select-bs5';
+
+// 6. CSS Imports
+import 'datatables.net-bs5/css/dataTables.bootstrap5.min.css';
+import 'select2/dist/css/select2.min.css';

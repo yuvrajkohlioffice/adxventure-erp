@@ -826,6 +826,7 @@
     <!-- Datatables js -->
    
     <script>
+        window.addEventListener('load', function() {
         $(function () {
             // Show Data Table Data
             let table = $('#leads-table').DataTable({
@@ -935,8 +936,10 @@
                 $(this).addClass('active');
             });
         });
+    });
     </script>
     <script>
+        window.addEventListener('load', function() {
         $(function () {
             function cb(start, end) {
                 $('#reportrange1 span').html(start.format('MMMM D, YYYY') + ' - ' + end.format('MMMM D, YYYY'));
@@ -981,10 +984,11 @@
             // Set initial placeholder
             $('#reportrange1 span').html('Search by date');
         });
-
+    });
     </script>
 
     <script>
+        window.addEventListener('load', function() {
         $(document).ready(function () {
        $('#lead-assigned').on('change', function () {
         let bdeId = $(this).val();
@@ -1035,6 +1039,7 @@
       });
 
       });
+    });
 
     </script>
 

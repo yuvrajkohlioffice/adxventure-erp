@@ -38,22 +38,22 @@ class CrmController extends Controller
     //  LEAD COUNTS API
     // ============================
     
-    // public function counts()
-    // {
-    //     return response()->json([
-    //         'all'            => Lead::count(),
-    //         'converted'      => Lead::where('status', 'converted')->count(),
-    //         'followup'       => Lead::where('followup_count', '>', 0)->count(),
-    //         'delay'          => Lead::where('delay_days', '>', 0)->count(),
-    //         'cold'           => Lead::where('lead_temp', 'cold')->count(),
-    //         'rejects'        => Lead::where('is_rejected', 1)->count(),
-    //         'fresh'          => Lead::whereDate('created_at', today())->count(),
-    //         'today'          => Lead::whereDate('created_at', today())->count(),
-    //         'yesterday'      => Lead::whereDate('created_at', today()->subDay())->count(),
-    //         'this_week'      => Lead::whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()])->count(),
-    //         'this_month'     => Lead::whereMonth('created_at', now()->month)->count(),
-    //     ]);
-    // }
+    public function counts()
+    {
+        return response()->json([
+            'all'            => Lead::count(),
+            'converted'      => Lead::where('status', 'converted')->count(),
+            'followup'       => Lead::where('followup_count', '>', 0)->count(),
+            'delay'          => Lead::where('delay_days', '>', 0)->count(),
+            'cold'           => Lead::where('lead_temp', 'cold')->count(),
+            'rejects'        => Lead::where('is_rejected', 1)->count(),
+            'fresh'          => Lead::whereDate('created_at', today())->count(),
+            'today'          => Lead::whereDate('created_at', today())->count(),
+            'yesterday'      => Lead::whereDate('created_at', today()->subDay())->count(),
+            'this_week'      => Lead::whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()])->count(),
+            'this_month'     => Lead::whereMonth('created_at', now()->month)->count(),
+        ]);
+    }
 
     public function index(Request $request)
     {
@@ -1086,58 +1086,58 @@ class CrmController extends Controller
         return $data;
     }
 
-    public function counts(Request $request)
-    {
-        $start = $request->input('start_date');
-        $end = $request->input('end_date');
-        $startDate = Carbon::parse($start)->startOfDay();
-        $endDate = Carbon::parse($end)->endOfDay();
+    // public function counts(Request $request)
+    // {
+    //     $start = $request->input('start_date');
+    //     $end = $request->input('end_date');
+    //     $startDate = Carbon::parse($start)->startOfDay();
+    //     $endDate = Carbon::parse($end)->endOfDay();
       
 
-        $user = auth()->user();
-        // counts 
-        $count = [];
-        if ($user && $user->hasRole(['BDE', 'Business Development Intern'])) {
-            $count['leads'] = Lead::where(function($query) use ($startDate, $endDate) {
-                    $query->whereBetween('created_at', [$startDate, $endDate])
-                        ->orwhereBetween('assigned_date', [$startDate, $endDate]);
-                })
-                ->where('assigned_user_id', $user->id)
-                ->count();
-            $count['proposals'] = Lead::whereBetween('mail_date', [$startDate, $endDate])->where('mail_status',1)->where('assigned_user_id',$user->id)->count();
-            $count['followups'] =  Followup::whereHas('lead')->where('user_id', $user->id)
-                                            ->where(function ($query) use ($startDate, $endDate) {
-                                                $query->whereBetween('created_at', [$startDate, $endDate]);
-                                            })->distinct('lead_id')->count();
-                $count['proposals'] = Lead::whereDate('proposal_date', Carbon::today())->where('proposal',1)->where('assigned_user_id',$user->id)->count();
-                $count['quotation'] = Lead::whereDate('quotation_date', Carbon::today())->where('quotation',1)->where('assigned_user_id',$user->id)->count();
-                $count['delay'] = 0;
-                $count['reject'] =  FollowUp::whereHas('lead')->where('user_id', $user->id)
-                                        ->where(function ($query) use ($startDate, $endDate){
-                                            $query->where('reason', ['Wrong Information', 'Not interested', 'Work with other company'])
-                                        ->whereBetween('created_at', [$startDate, $endDate]);
-                                        })->distinct('lead_id')->count(); 
+    //     $user = auth()->user();
+    //     // counts 
+    //     $count = [];
+    //     if ($user && $user->hasRole(['BDE', 'Business Development Intern'])) {
+    //         $count['leads'] = Lead::where(function($query) use ($startDate, $endDate) {
+    //                 $query->whereBetween('created_at', [$startDate, $endDate])
+    //                     ->orwhereBetween('assigned_date', [$startDate, $endDate]);
+    //             })
+    //             ->where('assigned_user_id', $user->id)
+    //             ->count();
+    //         $count['proposals'] = Lead::whereBetween('mail_date', [$startDate, $endDate])->where('mail_status',1)->where('assigned_user_id',$user->id)->count();
+    //         $count['followups'] =  Followup::whereHas('lead')->where('user_id', $user->id)
+    //                                         ->where(function ($query) use ($startDate, $endDate) {
+    //                                             $query->whereBetween('created_at', [$startDate, $endDate]);
+    //                                         })->distinct('lead_id')->count();
+    //             $count['proposals'] = Lead::whereDate('proposal_date', Carbon::today())->where('proposal',1)->where('assigned_user_id',$user->id)->count();
+    //             $count['quotation'] = Lead::whereDate('quotation_date', Carbon::today())->where('quotation',1)->where('assigned_user_id',$user->id)->count();
+    //             $count['delay'] = 0;
+    //             $count['reject'] =  FollowUp::whereHas('lead')->where('user_id', $user->id)
+    //                                     ->where(function ($query) use ($startDate, $endDate){
+    //                                         $query->where('reason', ['Wrong Information', 'Not interested', 'Work with other company'])
+    //                                     ->whereBetween('created_at', [$startDate, $endDate]);
+    //                                     })->distinct('lead_id')->count(); 
                
-                $count['revenue'] =0;
-            }else{
+    //             $count['revenue'] =0;
+    //         }else{
 
-            $count['leads'] =  Lead::whereBetween('created_at', [$startDate, $endDate])->count();
-            $count['followups'] = Followup::whereHas('lead')->whereBetween('created_at', [$startDate, $endDate])->select('lead_id')->distinct()->count();
-            $count['proposals'] = Lead::whereBetween('proposal_date', [$startDate, $endDate])->where('proposal',1)->count();
-            $count['quotation'] = Lead::whereBetween('quotation_date', [$startDate, $endDate])->where('quotation',1)->count();
-            $count['revenue'] =0;
-            $count['delay'] = Followup::whereHas('lead')
-                                ->where(function ($query) {
-                                    $query->where('delay', 1)
-                                        ->orWhere('is_completed', '!=', 1);
-                                })  
-                                ->whereBetween('next_date', [$startDate, $endDate])
-                                ->distinct('lead_id')
-                                ->count();
-            $count['reject'] = Followup::whereHas('lead')->whereIn('reason', ['Wrong Information', 'Not interested', 'Work with other company'])->whereBetween('created_at', [$startDate, $endDate])->select('lead_id')->distinct()->count();
-        }
-        return response()->json($count);
-    }
+    //         $count['leads'] =  Lead::whereBetween('created_at', [$startDate, $endDate])->count();
+    //         $count['followups'] = Followup::whereHas('lead')->whereBetween('created_at', [$startDate, $endDate])->select('lead_id')->distinct()->count();
+    //         $count['proposals'] = Lead::whereBetween('proposal_date', [$startDate, $endDate])->where('proposal',1)->count();
+    //         $count['quotation'] = Lead::whereBetween('quotation_date', [$startDate, $endDate])->where('quotation',1)->count();
+    //         $count['revenue'] =0;
+    //         $count['delay'] = Followup::whereHas('lead')
+    //                             ->where(function ($query) {
+    //                                 $query->where('delay', 1)
+    //                                     ->orWhere('is_completed', '!=', 1);
+    //                             })  
+    //                             ->whereBetween('next_date', [$startDate, $endDate])
+    //                             ->distinct('lead_id')
+    //                             ->count();
+    //         $count['reject'] = Followup::whereHas('lead')->whereIn('reason', ['Wrong Information', 'Not interested', 'Work with other company'])->whereBetween('created_at', [$startDate, $endDate])->select('lead_id')->distinct()->count();
+    //     }
+    //     return response()->json($count);
+    // }
 
     public function Status($id,$status){
         $lead = lead::find($id);

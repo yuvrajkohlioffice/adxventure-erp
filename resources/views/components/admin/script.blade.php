@@ -1,18 +1,9 @@
-
-
-<script src="{{ asset('assets/vendor/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
-
 <script src="{{ asset('custom.js') }}"></script>
 
 
 
 <!-- Bootstrap-datepicker JS -->
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/js/bootstrap-datepicker.min.js"></script>
-
-<script src="https://unpkg.com/sweetalert/dist/sweetalert.min.js"></script>
-
-<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
 
 
 
@@ -20,10 +11,10 @@
 
 
 
-{{-- loader function  --}}
+{{-- loader function --}}
 
 <script>
-
+    window.addEventListener('load', function() {
     function busy(show) {
 
         let $body = $('body');
@@ -47,7 +38,7 @@
         console.log('Inside Busy Loader Function');
 
     }
-
+ });
 </script>
 
 
@@ -55,7 +46,7 @@
 
 
 <script>
-
+    window.addEventListener('load', function() {
     toastr.options = {
 
         "closeButton": true,
@@ -161,7 +152,7 @@
         toastr.info("{{ session('notification') }}");
 
     @endif
-
+ });
 </script>
 
 
@@ -171,7 +162,7 @@
 
 
 <script>
-
+    window.addEventListener('load', function() {
     $(document).ready(function() {
 
         $('#logout-button').click(function(e) {
@@ -291,13 +282,14 @@
         });
 
     });
+});
 
 </script>
 
 
 
 <script>
-
+    window.addEventListener('load', function() {
     $("#from_date").change(function() {
 
         var FromDate = $(this).val();
@@ -317,13 +309,13 @@
         }
 
     });
-
+ });
 </script>
 
 
 
 <script>
-
+    window.addEventListener('load', function() {
     $('#datepicker').datepicker({
 
         multidate: true,
@@ -331,9 +323,6 @@
         format: 'dd-mm-yyyy'
 
     });
-
-
-
     $(document).ready(function() {
 
         $("#type").change(function() {
@@ -355,9 +344,6 @@
         });
 
     });
-
-
-
     function updateTime() {
 
         var currentTime = new Date();
@@ -403,25 +389,20 @@
         $("#live-time").text(currentTimeString);
 
     }
-
-
-
     setInterval(updateTime, 1000);
-
-
 
     $('#resetButton').on('click', function() {
 
         window.location.href = window.location.origin + window.location.pathname;
 
     });
-
+ });
 </script>
 
 
 
 <script>
-
+    window.addEventListener('load', function() {
     $(".editForm").click(function() {
 
         var date = $(this).data('date');
@@ -465,13 +446,12 @@
         $('#GenrateInvoice').modal('show')
 
     });
-
+ });
 </script>
 
 
 
 <script>
-
     const invoiceDateInput = document.querySelector('.dateInvoice');
 
     const errorInvoiceDate = document.querySelector('.error-invoicedate');
@@ -531,7 +511,6 @@
 
 
 <script>
-
     document.addEventListener('DOMContentLoaded', (event) => {
 
         let moel = document.getElementById('exampleModal');
@@ -557,7 +536,7 @@
 @if(session('show_late_modal'))
 
 <script>
-
+    window.addEventListener('load', function() {
    $(document).ready(function () {
 
        $('#lateModal').modal({
@@ -571,12 +550,13 @@
        $('#lateModal').modal('show');
 
    });
-
+ });
 </script>
 
 @endif
 
 <script>
+    window.addEventListener('load', function() {
    $(document).ready(function () {
     $('#lateReasonForm').on('submit', function (e) {
         e.preventDefault();
@@ -637,6 +617,6 @@
     });
 });
 
-
+     });
    
 </script>
