@@ -1,5 +1,8 @@
 import './bootstrap'; 
 
+import $ from 'jquery';
+window.$ = window.jQuery = $;
+
 // 1. Core Dependencies
 import * as bootstrap from 'bootstrap'; 
 
