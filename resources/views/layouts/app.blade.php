@@ -9,9 +9,9 @@
         <link rel="stylesheet" href="{{ asset('assets/vendor/bootstrap-icons/bootstrap-icons.css') }}" />
         <link rel="stylesheet" href="{{ asset('assets/vendor/boxicons/css/boxicons.min.css') }}" />
         <link rel="stylesheet" href="{{ asset('assets/css/style.css') }}" />
-        <link href="{{ asset('assets/vendor/toastr/toastr.min.css') }}" rel="stylesheet">
-        <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
-       @vite(['resources/css/app.css', 'resources/js/app.js'])
+       
+        @vite(['resources/css/app.css', 'resources/js/app.js'])
+        @vite(['resources/js/app.js'], ['defer' => false])
         <x-admin.style></x-admin.style>
         
         @yield('css')
