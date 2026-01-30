@@ -1,364 +1,363 @@
 // AJAX start event: Show loader
-window.addEventListener('load', function () {
-    $(document).ajaxStart(function () {
 
-        $("#loader").show();
+$(document).ajaxStart(function () {
 
-        $("#submit-btn").attr("disabled", "true");
+    $("#loader").show();
 
+    $("#submit-btn").attr("disabled", "true");
 
 
-    });
 
+});
 
 
-    // AJAX stop event: Hide loader
 
-    $(document).ajaxStop(function () {
+// AJAX stop event: Hide loader
 
-        $("#loader").hide();
+$(document).ajaxStop(function () {
 
-        $("#submit-btn").removeAttr("disabled");
+    $("#loader").hide();
 
-    });
+    $("#submit-btn").removeAttr("disabled");
 
+});
 
 
-    //show image Previewe
 
-    function previewImage(event) {
+//show image Previewe
 
-        var reader = new FileReader();
+function previewImage(event) {
 
-        reader.onload = function () {
+    var reader = new FileReader();
 
-            var imagePreview = document.getElementById('image-preview');
+    reader.onload = function() {
 
-            imagePreview.src = reader.result;
+        var imagePreview = document.getElementById('image-preview');
 
-            imagePreview.style.display = 'block';
+        imagePreview.src = reader.result;
 
-        };
+        imagePreview.style.display = 'block';
 
-        reader.readAsDataURL(event.target.files[0]);
+    };
 
-    }
+    reader.readAsDataURL(event.target.files[0]);
 
+}
 
 
-    // form Submit ajax request code
 
-    $("#ajax-form").on("submit", function (event) {
+// form Submit ajax request code
 
-        event.preventDefault();
+$("#ajax-form").on("submit", function (event) {
 
-        // Clear existing error messages
+    event.preventDefault();
 
-        $(".error").text("");
+    // Clear existing error messages
 
+    $(".error").text("");
 
 
-        var url = $(this).data("action");
 
-        var method = $(this).data("method");
+    var url = $(this).data("action");
 
-        var formData = new FormData(this); // Use FormData for file upload
+    var method = $(this).data("method");
 
+    var formData = new FormData(this); // Use FormData for file upload
 
 
-        $.ajax({
 
-            url: url,
+    $.ajax({
 
-            type: method,
+        url: url,
 
-            data: formData,
+        type: method,
 
-            processData: false,
+        data: formData,
 
-            contentType: false,
+        processData: false,
 
-            success: function (response) {
+        contentType: false,
 
+        success: function (response) {
+            
 
 
 
-                toastr.options = {
+            toastr.options = {
 
-                    positionClass: 'toast-top-right',
+                positionClass: 'toast-top-right',
 
-                    closeButton: true,
+                closeButton: true, 
 
-                    progressBar: true,
+                progressBar: true, 
 
-                    timeOut: 3000,
+                timeOut: 3000, 
 
-                    extendedTimeOut: 1000,
+                extendedTimeOut: 1000, 
 
-                    iconClass: 'toast-success-icon'
+                iconClass: 'toast-success-icon'
 
-                };
+            };
 
+            
 
+            if (response.errors) {
 
-                if (response.errors) {
+                // Display validation errors
 
-                    // Display validation errors
+                var msg = Object.keys(response.errors)[0];
 
-                    var msg = Object.keys(response.errors)[0];
+                msg = response.errors[msg];
 
-                    msg = response.errors[msg];
+                $.each(response.errors, function (field, message) {
 
-                    $.each(response.errors, function (field, message) {
+                    var ff = field.replace(/\./g, "-");
 
-                        var ff = field.replace(/\./g, "-");
+                    $("#error-" + ff).text(message[0]);
 
-                        $("#error-" + ff).text(message[0]);
+                });
 
-                    });
+                toastr.error(msg);
 
-                    toastr.error(msg);
+            } else if (response.success) {
 
-                } else if (response.success) {
+                // Handle successful submission
 
-                    // Handle successful submission
+                toastr.success("Success! Form Submitted successfully.");
 
-                    toastr.success("Success! Form Submitted successfully.");
+                if(response.url){
 
-                    if (response.url) {
+                    setTimeout(function() {
 
-                        setTimeout(function () {
+                        window.location = response.url;
 
-                            window.location = response.url;
-
-                        }, 500);
-
-                    }
+                    }, 500);  
 
                 }
 
-            },
+            }
 
-            error: function (err) {
+        },
 
-                toastr.info("Error! Please Contact Admin.");
+        error: function (err) {
 
-            },
+            toastr.info("Error! Please Contact Admin.");
 
-        });
-
-    });
-
-
-
-
-
-    $(".ajax-form").on("submit", function (event) {
-
-        event.preventDefault();
-
-        // Clear existing error messages
-
-        $(".error").text("");
-
-
-
-        var url = $(this).data("action");
-
-        var method = $(this).data("method");
-
-        var formData = new FormData(this); // Use FormData for file upload
-
-
-
-        $.ajax({
-
-            url: url,
-
-            type: method,
-
-            data: formData,
-
-            processData: false,
-
-            contentType: false,
-
-            success: function (response) {
-
-
-                toastr.options = {
-
-                    positionClass: 'toast-top-right',
-
-                    closeButton: true,
-
-                    progressBar: true,
-
-                    timeOut: 3000,
-
-                    extendedTimeOut: 1000,
-
-                    iconClass: 'toast-success-icon'
-
-                };
-
-
-
-                if (response.errors) {
-
-                    // Display validation errors
-
-                    var msg = Object.keys(response.errors)[0];
-
-                    msg = response.errors[msg];
-
-                    $.each(response.errors, function (field, message) {
-
-                        var ff = field.replace(/\./g, "-");
-
-                        $("#error-" + ff).text(message[0]);
-
-                    });
-
-                    toastr.error(msg);
-
-                } else if (response.success) {
-
-                    // Handle successful submission
-
-                    $(".ajax-form")[0].reset();
-                    toastr.success("Success! Form Submitted successfully.");
-
-                    if (response.url) {
-
-                        setTimeout(function () {
-
-                            window.location = response.url;
-
-                        }, 500);
-
-                    }
-
-                }
-
-            },
-
-            error: function (err) {
-
-                toastr.info("Error! Please Contact Admin.");
-
-            },
-
-        });
-
-    });
-
-
-
-
-
-    //get cities
-
-    $("#state").on("change", function (event) {
-
-
-
-        var state_id = $(this).val();
-
-        var url = $(this).data('url');
-
-
-
-        $.ajax({
-
-            url: url,
-
-            type: "GET",
-
-            data: { id: state_id },
-
-            success: function (response) {
-
-                $('#city').removeAttr('disabled');
-
-                if (response.data) {
-
-                    var selectElement = $('#city');
-
-
-
-                    // Clear any existing options
-
-                    selectElement.empty();
-
-                    selectElement.append($('<option>', {
-
-                        value: "",
-
-                        text: "SELECT CITY"
-
-                    }));
-
-                    // Append new options
-
-                    $.each(response.data, function (index, item) {
-
-                        selectElement.append($('<option>', {
-
-                            value: item.id,
-
-                            text: item.name
-
-                        }));
-
-                    });
-
-                }
-
-
-
-            },
-
-            error: function (err) {
-
-                toastr.info("Error! Please Contact Admin.");
-
-            },
-
-        });
-
-
-
-    });
-
-
-
-    $(".addButton").click(function () {
-
-
-
-        var aa = $(this).data('val');
-
-        var bb = $(this).data('target');
-
-        var num = $(this).data('num') + 1;
-
-        $(this).data('num', num);
-
-
-
-        // var html = '<input class="form-control" name="education[]" placeholder="job education details type here..."     />';
-
-        // html += "<p class='error' id='error-education-"+  +"'></p>";
-
-
-
-        // var newResponsibility = $(".responsibility-item:first").clone();
-
-        // newResponsibility.find('input').val('');
-
-        // container.append(newResponsibility);
+        },
 
     });
 
 });
+
+
+
+
+
+$(".ajax-form").on("submit", function (event) {
+
+    event.preventDefault();
+
+    // Clear existing error messages
+
+    $(".error").text("");
+
+
+
+    var url = $(this).data("action");
+
+    var method = $(this).data("method");
+
+    var formData = new FormData(this); // Use FormData for file upload
+
+
+
+    $.ajax({
+
+        url: url,
+
+        type: method,
+
+        data: formData,
+
+        processData: false,
+
+        contentType: false,
+
+        success: function (response) {
+
+
+            toastr.options = {
+
+                positionClass: 'toast-top-right',
+
+                closeButton: true, 
+
+                progressBar: true, 
+
+                timeOut: 3000, 
+
+                extendedTimeOut: 1000, 
+
+                iconClass: 'toast-success-icon'
+
+            };
+
+            
+
+            if (response.errors) {
+
+                // Display validation errors
+
+                var msg = Object.keys(response.errors)[0];
+
+                msg = response.errors[msg];
+
+                $.each(response.errors, function (field, message) {
+
+                    var ff = field.replace(/\./g, "-");
+
+                    $("#error-" + ff).text(message[0]);
+
+                });
+
+                toastr.error(msg);
+
+            } else if (response.success) {
+
+                // Handle successful submission
+
+                $(".ajax-form")[0].reset();
+                toastr.success("Success! Form Submitted successfully.");
+
+                if(response.url){
+
+                    setTimeout(function() {
+
+                        window.location = response.url;
+
+                    }, 500);  
+
+                }
+
+            }
+
+        },
+
+        error: function (err) {
+
+            toastr.info("Error! Please Contact Admin.");
+
+        },
+
+    });
+
+});
+
+
+
+
+
+//get cities
+
+$("#state").on("change", function (event) {
+
+
+
+    var state_id = $(this).val();
+
+    var url = $(this).data('url');
+
+
+
+    $.ajax({
+
+        url: url,
+
+        type: "GET",
+
+        data: {id:state_id},
+
+        success: function (response) {
+
+            $('#city').removeAttr('disabled');
+
+            if (response.data) {
+
+                var selectElement = $('#city');
+
+                
+
+                // Clear any existing options
+
+                selectElement.empty();
+
+                selectElement.append($('<option>', {
+
+                    value: "",
+
+                    text: "SELECT CITY"
+
+                }));
+
+                // Append new options
+
+                $.each(response.data, function (index, item) {
+
+                    selectElement.append($('<option>', {
+
+                        value: item.id,
+
+                        text: item.name
+
+                    }));
+
+                });
+
+            }
+
+        
+
+        },
+
+        error: function (err) {
+
+            toastr.info("Error! Please Contact Admin.");
+
+        },
+
+    });
+
+
+
+});
+
+
+
+ $(".addButton").click(function () {
+
+            
+
+            var aa = $(this).data('val');
+
+            var bb = $(this).data('target');
+
+            var num = $(this).data('num') + 1; 
+
+            $(this).data('num',num);
+
+            
+
+            // var html = '<input class="form-control" name="education[]" placeholder="job education details type here..."     />';
+
+            // html += "<p class='error' id='error-education-"+  +"'></p>";
+
+
+
+            // var newResponsibility = $(".responsibility-item:first").clone();
+
+            // newResponsibility.find('input').val('');
+
+            // container.append(newResponsibility);
+
+});
+
