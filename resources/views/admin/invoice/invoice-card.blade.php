@@ -190,7 +190,7 @@
         chart.render();
     </script>
 
-<script>
+<script type="text/javascript">
     var total = @json($todayTotalInvoicePrice);
     var pay = @json($todayPayInvoicePrice);
     var balance = @json($todayBalancePrice);

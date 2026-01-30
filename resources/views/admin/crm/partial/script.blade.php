@@ -1,4 +1,4 @@
-<script>
+<script type="module">
     //Date-range picker 
     $(document).ready(function() {
         var start = moment();
