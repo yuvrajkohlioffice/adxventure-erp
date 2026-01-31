@@ -157,7 +157,7 @@
         </table>
     </div>        
 </div>
-<script style="module">
+<script>
     $(function() {
     var start = moment().subtract(29, 'days');
     var end = moment();

@@ -79,7 +79,7 @@
     <script src="{{asset('assets/vendor/datatable/responsive.bootstrap5.min.js')}}"></script>
       <!-- Select2 JS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
-    <script type="module">
+    <script>
         $(function () {
             // Show Data Table Data
             let table = $('#client-table').DataTable({

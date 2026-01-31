@@ -1,266 +1,239 @@
 <x-app-layout>
     @section('title','Dashboard')
-    
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+     <!-- Show Counts  -->
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/jquery/latest/jquery.min.js"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/momentjs/latest/moment.min.js"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
     <style>
-        .chartjs.card { height: 335px; }
-        
-        /* Custom Datepicker input styling */
-        #reportrange4 {
-            background: #fff;
-            cursor: pointer;
-            padding: 6px 10px;
-            border: 1px solid #dee2e6;
-            width: 100%;
-            max-width: 320px; /* Adjusted width */
-            border-radius: 6px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            color: #495057;
+        .chartjs.card {
+            height: 335px;
         }
-        #reportrange4:hover {
-            border-color: var(--primary-color, #fe6600);
-        }
-        #reportrange4 span { font-weight: 500; font-size: 0.9rem; }
     </style>
 
-    <div class="pagetitle mb-4">
-        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-            <div>
-                <h1>Dashboard</h1>
-                <nav>
-                    <ol class="breadcrumb mb-0">
-                        <li class="breadcrumb-item"><a href="{{route('dashboard')}}">Home</a></li>
-                        <li class="breadcrumb-item active">Dashboard</li>
-                    </ol>
-                </nav>
-            </div>
-
-            <div id="reportrange4">
-                <div class="d-flex align-items-center gap-2">
-                    <i class="bi bi-calendar3"></i>
-                    <span>Loading...</span> 
-                </div>
-                <i class="bi bi-chevron-down"></i>
-            </div>
+    <div class="pagetitle">
+        <div id="reportrange" class="form-control" style="cursor: pointer;width: 100%; max-width:340px;float:right; border-radius:6px;padding:3.5px 6px;font-weight: 600;">
+            <small>Sort By</small>&nbsp;
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-calendar"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+            <span></span>
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-chevron-down me-0"><polyline points="6 9 12 15 18 9"></polyline></svg>
         </div>
+        <h1>Dashboard</h1>
+        <nav>
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{route('dashboard')}}">Home</a></li>
+                <li class="breadcrumb-item active">Dashboard</li>
+            </ol>
+        </nav>
     </div>
 
     @role('Super-Admin')
-    <section class="section dashboard">
-        <div class="row">
-            <div class="col-md">
-                <div class="card info-card sales-card">
-                    <div class="card-body pt-4 d-flex align-items-center gap-3">
-                        <i class="bi bi-people-fill text-white bg-primary rounded-circle p-2 fs-4"></i>
-                        <div>
-                            <h5 class="card-title m-0 fw-bold">Leads</h5>
-                            <h6 class="mb-0 fs-5 mt-1">{{$count['leads'] ?? 0}}</h6>
+        <section class="section dashboard">
+            <div class="row">
+                <div class="col">
+                    <div class="card info-card sales-card">
+                        <div class="card-body pt-4 d-flex align-items-center gap-3">
+                            <i class="bi bi-people-fill" style="font-size: xx-large;background: blue;border-radius: 50%;padding: 2px 10px;color:white;"></i>
+                            <div class="div">
+                                <h5 class="card-title m-0 p-0" style="font-weight:600;">Leads</h5>
+                                <h6 class="mb-0 fs-22 text-dark mt-2" id="leads_count">{{$count['leads'] ?? 0}}</h6>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="card info-card sales-card">
+                        <div class="card-body pt-4 d-flex align-items-center gap-3">
+                                <i class="bi bi-person-check-fill" style="font-size: xx-large;background: green;border-radius: 50%;padding: 2px 10px;color: white;"></i>
+                            <div class="div">
+                                <h5 class="card-title m-0 p-0" style="font-weight:600;">Followups</h5>
+                                <h6 class="mb-0 fs-22 text-dark mt-2" id="followups_count">{{$count['followups'] ?? 0}}</h6> 
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="card info-card sales-card">
+                        <div class="card-body pt-4 d-flex align-items-center gap-3">
+                            <i class="bi bi-file-text-fill" style="font-size: xx-large;background: chocolate;border-radius: 50%;padding: 2px 10px;color: white;"></i>
+                            <div class="div">
+                                <h5 class="card-title m-0 p-0" style="font-weight:600;">Proposals</h5>
+                                <h6 class="mb-0 fs-22 text-dark mt-2" id="proposals_count">{{$count['proposal'] ?? 0}}</h6>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="card info-card sales-card">
+                            <div class="card-body pt-4 d-flex align-items-center gap-3">
+                            <i class="bi bi-file-earmark-arrow-up-fill" style="font-size: xx-large;background: darkslateblue;border-radius: 50%;padding: 2px 10px;color: white;"></i>
+                            <div class="div">
+                                <h5 class="card-title m-0 p-0" style="font-weight:600;">Quotation</h5>
+                                <h6 class="mb-0 fs-22 text-dark mt-2" id="quotation_count">{{$count['quotation'] ?? 0}}</h6>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="card info-card sales-card">
+                            <div class="card-body pt-4 d-flex align-items-center gap-3">
+                            <i class="bi bi-currency-rupee" style="font-size: xx-large;background: maroon;border-radius: 50%;padding: 2px 10px;color: white;"></i>
+                            <div class="div">
+                                <h5 class="card-title m-0 p-0" style="font-weight:600;">Revenue</h5>
+                                <h6 class="mb-0 fs-22 text-dark mt-2" id="revenue_count">₹ {{$count['revenue'] ?? 0}}</h6>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-            <div class="col-md">
-                <div class="card info-card sales-card">
-                    <div class="card-body pt-4 d-flex align-items-center gap-3">
-                        <i class="bi bi-person-check-fill text-white bg-success rounded-circle p-2 fs-4"></i>
-                        <div>
-                            <h5 class="card-title m-0 fw-bold">Followups</h5>
-                            <h6 class="mb-0 fs-5 mt-1">{{$count['followups'] ?? 0}}</h6>
+            <div class="row">
+                <div class="col">
+                    <div class="card info-card sales-card">
+                            <div class="card-body pt-4 d-flex align-items-center gap-3">
+                            <i class="bi bi-person-circle"  style="font-size: xx-large;background: cadetblue;border-radius: 50%;padding: 2px 10px;color: white;"></i>
+                            <div class="div">
+                                <h5 class="card-title m-0 p-0" style="font-weight:600;">Total Employee</h5>
+                                <h6 class="mb-0 fs-22 text-dark mt-2" id="revenue_count">{{$count['employee'] ?? 0}}</h6>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="card info-card sales-card">
+                            <div class="card-body pt-4 d-flex align-items-center gap-3">
+                            <i class="bi bi-person-check-fill" style="font-size: xx-large;background: blueviolet;border-radius: 50%;padding: 2px 10px;color: white;"></i>
+                            <div class="div">
+                                <h5 class="card-title m-0 p-0" style="font-weight:600;">Total Clients</h5>
+                                <h6 class="mb-0 fs-22 text-dark mt-2" id="revenue_count">{{$count['client'] ?? 0}}</h6>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="card info-card sales-card">
+                            <div class="card-body pt-4 d-flex align-items-center gap-3">
+                        <i class="bi bi-box-fill" style="font-size: xx-large;background: black;border-radius: 50%;padding: 2px 10px;color: white;"></i>
+                            <div class="div">
+                                <h5 class="card-title m-0 p-0" style="font-weight:600;">Total Projects</h5>
+                                <h6 class="mb-0 fs-22 text-dark mt-2" id="revenue_count">{{$count['project'] ?? 0}}</h6>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="card info-card sales-card">
+                            <div class="card-body pt-4 d-flex align-items-center gap-3">
+                        <i class="bi bi-list-check" style="font-size: xx-large;background: crimson;border-radius: 50%;padding: 2px 10px;color: white;"></i>
+                            <div class="div">
+                                <h5 class="card-title m-0 p-0" style="font-weight:600;">Total Tasks</h5>
+                                <h6 class="mb-0 fs-22 text-dark mt-2" id="revenue_count">{{$count['task'] ?? 0}}</h6>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="card info-card sales-card">
+                            <div class="card-body pt-4 d-flex align-items-center gap-3">
+                        <i class="bi bi-calendar-check-fill"  style="font-size: xx-large;background: darkslategrey;border-radius: 50%;padding: 2px 10px;color: white;"></i>
+                            <div class="div">
+                                <h5 class="card-title m-0 p-0" style="font-weight:600;">Attandance</h5>
+                                <h6 class="mb-0 fs-22 text-dark mt-2" id="revenue_count">{{$count['attandance'] ?? 0}}</h6>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-            <div class="col-md">
-                <div class="card info-card sales-card">
-                    <div class="card-body pt-4 d-flex align-items-center gap-3">
-                        <i class="bi bi-file-text-fill text-white rounded-circle p-2 fs-4" style="background: chocolate;"></i>
-                        <div>
-                            <h5 class="card-title m-0 fw-bold">Proposals</h5>
-                            <h6 class="mb-0 fs-5 mt-1">{{$count['proposal'] ?? 0}}</h6>
+            <div class="row">
+                <div class="col-md-12 col-xl-7">
+                    <div class="card overflow-hidden">
+                        <div class="card-header">
+                            <div class="d-flex align-items-center justify-content-between">
+                                <h5 class="card-title mb-0">Today leaves</h5>
+                                <a href="{{url('leave')}}" class="btn  btn-outline-dark">Leaves <i class="bi bi-arrow-up-right-circle-fill"></i></a>
+                            </div>
                         </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md">
-                <div class="card info-card sales-card">
-                    <div class="card-body pt-4 d-flex align-items-center gap-3">
-                        <i class="bi bi-file-earmark-arrow-up-fill text-white rounded-circle p-2 fs-4" style="background: darkslateblue;"></i>
-                        <div>
-                            <h5 class="card-title m-0 fw-bold">Quotation</h5>
-                            <h6 class="mb-0 fs-5 mt-1">{{$count['quotation'] ?? 0}}</h6>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md">
-                <div class="card info-card sales-card">
-                    <div class="card-body pt-4 d-flex align-items-center gap-3">
-                        <i class="bi bi-currency-rupee text-white rounded-circle p-2 fs-4" style="background: maroon;"></i>
-                        <div>
-                            <h5 class="card-title m-0 fw-bold">Revenue</h5>
-                            <h6 class="mb-0 fs-5 mt-1">₹ {{$count['revenue'] ?? 0}}</h6>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+                        <div class="card-body mt-0">
+                            <div class="table-responsive table-card mt-0">
+                                <table class="table table-borderless table-centered align-middle table-nowrap mb-0">
+                                    <thead class="text-muted table-light">
+                                        <tr>
+                                            <th scope="col" class="cursor-pointer">Employee</th>
+                                            <th scope="col" class="cursor-pointer">Department</th>
+                                            <th scope="col" class="cursor-pointer">Type</th>
+                                            <th scope="col" class="cursor-pointer">Duration</th>
+                                            <th scope="col" class="cursor-pointer">Reason</th>
+                                            <th scope="col" class="cursor-pointer">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>  
+                                        @if(isset($leaves))
+                                        @forelse($leaves as $leave)
+                                        <tr>
+                                            <td>  
+                                                <div class="d-flex align-items-center gap-1">
+                                                    @if(!$leave->users->image)
+                                                        <img src="{{ asset('/user1.png') }}" alt="user-image" class="rounded-circle" style="height: 45px;width: 45px;">
+                                                    @else
+                                                        <img src="{{asset($leave->users->image)}}" alt="user-image" class="rounded-circle" style="height: 45px;width: 45px;">
+                                                    @endif
 
-        <div class="row">
-            <div class="col-md">
-                <div class="card info-card sales-card">
-                    <div class="card-body pt-4 d-flex align-items-center gap-3">
-                        <i class="bi bi-person-circle text-white rounded-circle p-2 fs-4" style="background: cadetblue;"></i>
-                        <div>
-                            <h5 class="card-title m-0 fw-bold">Total Employee</h5>
-                            <h6 class="mb-0 fs-5 mt-1">{{$count['employee'] ?? 0}}</h6>
+                                                    <div>
+                                                        <h6 class="m-0">{{ucfirst($leave->users->name) ?? ''}}</h6>
+                                                        {{-- <span>{{ $leave->users->roles()->first()->name ?? ''}}</span> --}}
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            {{-- <td>{{ucfirst($leave->users->department->name) ?? ''}}</td> --}}
+                                            <td>{{$leave->type}}</td>
+                                            <td>
+                                                <span class="badge text-bg-dark">{{$leave->days}} Days</span>
+                                            </td>
+                                            <td>
+                                                @if($leave->document)
+                                                    <a href="{{asset('leaves/' . $leave->document)}} " target='_blank'><i class='bi bi-file-earmark-pdf-fill'></i></a>
+                                                @endif
+                                                <small style='cursor:pointer' data-bs-toggle='tooltip' data-bs-placement='top' title="{{$leave->request}}">{{substr($leave->request,0,20)}}..</small> 
+                                            </td>
+                                            <td>
+                                                @if($leave->status == 1)
+                                                    <span class="badge text-bg-success">Approved</span>
+                                                @elseif($leave->status == 2)
+                                                    <span class="badge text-bg-danger">Un-Approved</span>
+                                                @else 
+                                                    <span class="badge text-bg-warning">Pending</span>
+                                                @endif
+                                            </td>
+                                        </tr>
+                                        @empty
+                                        <tr>
+                                            <td>Employee not on leave. </td>
+                                        </tr>
+                                        @endforelse
+                                        @endif
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-            <div class="col-md">
-                <div class="card info-card sales-card">
-                    <div class="card-body pt-4 d-flex align-items-center gap-3">
-                        <i class="bi bi-person-check-fill text-white rounded-circle p-2 fs-4" style="background: blueviolet;"></i>
-                        <div>
-                            <h5 class="card-title m-0 fw-bold">Total Clients</h5>
-                            <h6 class="mb-0 fs-5 mt-1">{{$count['client'] ?? 0}}</h6>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md">
-                <div class="card info-card sales-card">
-                    <div class="card-body pt-4 d-flex align-items-center gap-3">
-                        <i class="bi bi-box-fill text-white bg-dark rounded-circle p-2 fs-4"></i>
-                        <div>
-                            <h5 class="card-title m-0 fw-bold">Total Projects</h5>
-                            <h6 class="mb-0 fs-5 mt-1">{{$count['project'] ?? 0}}</h6>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md">
-                <div class="card info-card sales-card">
-                    <div class="card-body pt-4 d-flex align-items-center gap-3">
-                        <i class="bi bi-list-check text-white rounded-circle p-2 fs-4" style="background: crimson;"></i>
-                        <div>
-                            <h5 class="card-title m-0 fw-bold">Total Tasks</h5>
-                            <h6 class="mb-0 fs-5 mt-1">{{$count['task'] ?? 0}}</h6>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md">
-                <div class="card info-card sales-card">
-                    <div class="card-body pt-4 d-flex align-items-center gap-3">
-                        <i class="bi bi-calendar-check-fill text-white rounded-circle p-2 fs-4" style="background: darkslategrey;"></i>
-                        <div>
-                            <h5 class="card-title m-0 fw-bold">Attendance</h5>
-                            <h6 class="mb-0 fs-5 mt-1">{{$count['attandance'] ?? 0}}</h6>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="row">
-            <div class="col-md-12 col-xl-7">
-                <div class="card overflow-hidden">
-                    <div class="card-header bg-white border-bottom">
-                        <div class="d-flex align-items-center justify-content-between">
-                            <h5 class="card-title mb-0">Leaves ({{ \Carbon\Carbon::parse($start_date_str)->format('M d') }} - {{ \Carbon\Carbon::parse($end_date_str)->format('M d') }})</h5>
-                            <a href="{{url('leave')}}" class="btn btn-sm btn-outline-dark">View All <i class="bi bi-arrow-up-right-circle-fill"></i></a>
-                        </div>
-                    </div>
-                    <div class="card-body p-0">
-                        <div class="table-responsive">
-                            <table class="table table-hover align-middle mb-0">
-                                <thead class="table-light text-muted">
-                                    <tr>
-                                        <th>Employee</th>
-                                        <th>Type</th>
-                                        <th>Days</th>
-                                        <th>Reason</th>
-                                        <th>Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @forelse($leaves as $leave)
-                                    <tr>
-                                        <td>
-                                            <div class="d-flex align-items-center gap-2">
-                                                <img src="{{ $leave->users->image ? asset($leave->users->image) : asset('/user1.png') }}" 
-                                                     alt="user" class="rounded-circle" style="width: 32px; height: 32px; object-fit: cover;">
-                                                <h6 class="m-0 text-sm">{{ucfirst($leave->users->name ?? '')}}</h6>
-                                            </div>
-                                        </td>
-                                        <td>{{$leave->type}}</td>
-                                        <td><span class="badge bg-secondary">{{$leave->days}}</span></td>
-                                        <td>
-                                            @if($leave->document)
-                                                <a href="{{asset('leaves/' . $leave->document)}}" target='_blank' class="me-1"><i class='bi bi-file-earmark-pdf-fill'></i></a>
-                                            @endif
-                                            <span data-bs-toggle="tooltip" title="{{$leave->request}}">{{ Str::limit($leave->request, 15) }}</span>
-                                        </td>
-                                        <td>
-                                            @if($leave->status == 1) <span class="badge bg-success">Approved</span>
-                                            @elseif($leave->status == 2) <span class="badge bg-danger">Un-Approved</span>
-                                            @else <span class="badge bg-warning text-dark">Pending</span>
-                                            @endif
-                                        </td>
-                                    </tr>
-                                    @empty
-                                    <tr>
-                                        <td colspan="5" class="text-center py-3 text-muted">No leaves found for this period.</td>
-                                    </tr>
-                                    @endforelse
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
+        </section>
     @endrole
 
     <script>
-    document.addEventListener("DOMContentLoaded", function() {
-        let attempts = 0;
-        const maxAttempts = 50; // Try for 5 seconds max
-
-        const initDateRange = () => {
-            // Check if jQuery, Moment, and Daterangepicker are loaded
-            if (typeof $ === 'undefined' || typeof moment === 'undefined' || !$.fn.daterangepicker) {
-                attempts++;
-                if (attempts > maxAttempts) {
-                    console.error("Failed to load daterangepicker libraries.");
-                    $('#reportrange4 span').html("Error loading calendar");
-                    return;
-                }
-                // Assets not loaded yet? Retry in 100ms
-                setTimeout(initDateRange, 100);
-                return;
-            }
-
-            // --- ALL LIBRARIES READY, PROCEED ---
-            
-            // 1. Capture dates from Controller
-            var start = moment("{{ $start_date_str }}");
-            var end = moment("{{ $end_date_str }}");
-
-            // 2. Callback to update text
+        //Date-range picker 
+        $(document).ready(function() {
+            var start = moment();
+            var end = moment();
             function cb(start, end) {
-                $('#reportrange4 span').html(start.format('MMMM D, YYYY') + ' - ' + end.format('MMMM D, YYYY'));
+                $('#reportrange span').html(start.format('MMMM D, YYYY') + ' - ' + end.format('MMMM D, YYYY'));
             }
-
-            // 3. Initialize Picker
-            $('#reportrange4').daterangepicker({
+            $('#reportrange').daterangepicker({
                 startDate: start,
                 endDate: end,
-                opens: 'left',
                 ranges: {
+                    'All': [moment().subtract(10, 'years'), moment().add(10, 'years')],
                     'Today': [moment(), moment()],
                     'Yesterday': [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
                     'Last 7 Days': [moment().subtract(6, 'days'), moment()],
@@ -269,16 +242,34 @@
                     'Last Month': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')]
                 }
             }, function(start, end) {
-                // Reload page on selection
                 cb(start, end);
-                window.location.href = "{{ route('dashboard') }}?start_date=" + start.format('YYYY-MM-DD') + "&end_date=" + end.format('YYYY-MM-DD');
+                let startDate = start.format('YYYY-MM-DD');
+                let endDate = end.format('YYYY-MM-DD');
+                // Perform the AJAX request to fetch the filtered data
+                busy(1);
+                $.ajax({
+                    url: '{{route("crm.counts")}}',
+                    method: 'GET',
+                    data: {
+                        start_date: startDate,  
+                        end_date: endDate,
+                    },  
+                    success: function(response) {
+                        busy(0);
+                        $('#leads_count').text(response.leads);
+                        $('#followups_count').text(response.followups);
+                        $('#proposals_count').text(response.proposals);
+                        $('#quotation_count').text(response.quotation);
+                        $('#revenue_count').text(response.revenue);
+                        $('#delay_count').text(response.delay);
+                        $('#reject_count').text(response.reject);
+                    },
+                    error: function() {
+                    }
+                });
             });
-
-            // Set initial text
             cb(start, end);
-        };
-
-        initDateRange();
-    });
-</script>
+        });
+    </script>
+   
 </x-app-layout>

@@ -165,7 +165,7 @@
     <script src="{{asset('assets/vendor/datatable/dataTables.responsive.min.js')}}"></script>
     <script src="{{asset('assets/vendor/datatable/responsive.bootstrap5.min.js')}}"></script>
 
-    <script type="module">
+    <script>
         $(function () {
             // Show Data Table Data
             let table = $('#leave-table').DataTable({

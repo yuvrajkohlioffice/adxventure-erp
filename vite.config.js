@@ -19,6 +19,7 @@ export default defineConfig({
         alias: {
             '$': 'jquery',
             'jQuery': 'jquery',
+            'window.jQuery': 'jquery',
         },
     },
 });

@@ -127,7 +127,7 @@
     <script src="{{asset('assets/vendor/datatable/dataTables.responsive.min.js')}}"></script>
     <script src="{{asset('assets/vendor/datatable/responsive.bootstrap5.min.js')}}"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script type="module">
+    <script>
         $(function () {
 
             let table = $('#recipientTable').DataTable({
