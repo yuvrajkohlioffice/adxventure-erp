@@ -36,28 +36,6 @@ class CrmController extends Controller
     {
         return Lead::with('category', 'totalAmount', 'Followup', 'countries', 'lastFollowup');
     }
-
-    // ============================
-    //  LEAD COUNTS API
-    // ============================
-
-    // public function counts()
-    // {
-    //     return response()->json([
-    //         'all'            => Lead::count(),
-    //         'converted'      => Lead::where('status', 'converted')->count(),
-    //         'followup'       => Lead::where('followup_count', '>', 0)->count(),
-    //         'delay'          => Lead::where('delay_days', '>', 0)->count(),
-    //         'cold'           => Lead::where('lead_temp', 'cold')->count(),
-    //         'rejects'        => Lead::where('is_rejected', 1)->count(),
-    //         'fresh'          => Lead::whereDate('created_at', today())->count(),
-    //         'today'          => Lead::whereDate('created_at', today())->count(),
-    //         'yesterday'      => Lead::whereDate('created_at', today()->subDay())->count(),
-    //         'this_week'      => Lead::whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()])->count(),
-    //         'this_month'     => Lead::whereMonth('created_at', now()->month)->count(),
-    //     ]);
-    // }
-
     public function index(Request $request)
     {
         $user = auth()->user();
@@ -224,15 +202,23 @@ public function data(Request $request)
 HTML;
         })
         ->addColumn('service', function ($lead) use ($projectCategories) {
-            if (empty($lead->project_category)) return 'No Service';
-            
-            $ids = json_decode($lead->project_category, true);
-            if (!is_array($ids)) return 'Invalid Data';
+                if (empty($lead->project_category)) return 'No Service';
+                
+                // FIX: Check if it's already an array (due to Model Casting)
+                $ids = $lead->project_category;
+                
+                if (is_string($ids)) {
+                    $ids = json_decode($ids, true);
+                }
 
-            // Map IDs to names using the pre-fetched array (No DB Query here!)
-            $names = array_map(fn($id) => $projectCategories[$id] ?? '', $ids);
-            return implode('<br>', array_filter($names));
-        })
+                // Safety check: ensure we have an array after decoding
+                if (!is_array($ids)) return 'Invalid Data';
+
+                // Map IDs to names using the pre-fetched array
+                $names = array_map(fn($id) => $projectCategories[$id] ?? '', $ids);
+                
+                return implode('<br>', array_filter($names));
+            })
         ->addColumn('location', function ($lead) {
             $country = e($lead->countries->nicename ?? 'N/A');
             $city = e($lead->city ?? 'N/A');
@@ -369,23 +355,6 @@ HTML;
 
         if ($request->has('service') && isset($request->service)) {
             $query->whereJsonContains('project_category', (string) $request->service);
-            // // Convert service IDs to integers
-            // if (is_array($services)) {
-            //     $services = array_map('intval', $services);
-            // } else {
-            //     $services = intval($services);
-            // }
-
-            // // Apply the filter with the adjusted service IDs
-            // if (is_array($services)) {
-            //     $query->where(function ($q) use ($services) {
-            //         foreach ($services as $service) {
-            //             $q->orWhereJsonContains('project_category', $service);
-            //         }
-            //     });
-            // } else {
-            //     $query->whereJsonContains('project_category', $services);
-            // }
         }
 
         if ($request->has('proposal')) {
@@ -1356,51 +1325,6 @@ HTML;
             return $this->success('created', 'send mail', $url);
         }
     }
-
-    // public function viewMail($leadId, $id = null)
-    // {
-    //     if ($id) {
-    //         $lead = User::with('service', 'prposal','invoice')->findOrFail($leadId);
-    //         $services = Work::where('client_id', $leadId)->get();
-    //         $total = TotalAmount::where('client_id', $leadId)->where('invoice_id', $lead->prposal->id)->first();
-
-    //         $office = Office::findorfail($lead->invoice->office);
-    //         foreach($services as $service){
-    //             if($service->currency == 1){
-    //                 $currency = '$';
-    //             }elseif($service->currency == 3){
-    //                 $currency = '£';
-    //             }else{
-    //                 $currency ='₹';
-    //             }
-    //         }
-    //     } else {
-    //         $lead = Lead::with('category', 'service', 'prposal','invoice')->findOrFail($leadId);
-    //         $services = Work::where('lead_id', $leadId)->get();
-    //         $total = TotalAmount::where('lead_id', $leadId)->where('invoice_id', $lead->prposal->id)->first();
-    //         $office = Office::findorfail($lead->invoice->office);
-    //         foreach($services as $service){
-    //             if($service->currency == 1){
-    //                 $currency = '$';
-    //             }elseif($service->currency == 3){
-    //                 $currency = '£';
-    //             }else{
-    //                 $currency ='₹';
-    //             }
-    //         }
-    //     }
-    //     return view('admin.crm.prposal.mail_preview', compact('lead', 'services', 'total','id','office','currency'));
-    // }
-
-
-
-
-
-
-
-
-
-
     public function ConvertLeads(Request $request)
     {
         // Initialize the query
@@ -2164,98 +2088,7 @@ HTML;
         return view('admin.crm.freshsale', compact('client', 'offices', 'invoice'));
     }
 
-    // public function offer_message(Request $request)
-    // {
-    //     $validator = Validator::make($request->all(), [
-    //         'message_user' => 'required|numeric',
-    //         'attachment' => 'required|file|mimes:jpeg,png,jpg,pdf,svg|max:2048',
-    //         'sendbywhatshapp' => 'required_without_all:sendbyemail',
-    //         'sendbyemail' => 'required_without_all:sendbywhatshapp',
-    //     ], [
-    //         'required_without_all' => 'Please select at least one option: Mail or WhatsApp.',
-    //     ]);
 
-    //     if ($validator->fails()) {
-    //         return response()->json(['errors' => $validator->errors()]);
-    //     }
-
-    //     $lead = Lead::findOrFail($request->message_user);
-    //     $name = $lead->name;
-    //     $phone = $lead->phone;
-
-    //     $subject = "Payment Details for Your Project";
-    //     $message = "Dear " . $name . ",\n" .
-    //         "We hope this message finds you well.\n" .
-    //         "\nPlease find below the payment details for your project. Here’s a summary for your convenience:\n\n" .
-    //         "\nFor easy payment, please scan the QR code:\n\n" .
-    //         "\nShould you need any further assistance or have any questions, feel free to reach out. We greatly appreciate your prompt attention and look forward to continuing our work together.\n\n" .
-    //         "Thank you,\n Adxventure\n";
-
-    //     // Handle file upload with `move`
-    //     $uploadedFile = $request->file('attachment');
-    //     $currentYear = date('Y');
-    //     $currentMonth = date('m');
-    //     $directoryPath = public_path("Offers/pdf/{$currentYear}/{$currentMonth}");
-
-    //     // Ensure the directory exists
-    //     if (!file_exists($directoryPath)) {
-    //         mkdir($directoryPath, 0755, true);
-    //     }
-
-    //     $pdfFileName = $uploadedFile->getClientOriginalName();
-    //     $uploadedFile->move($directoryPath, $pdfFileName);
-    //     $pdfPath = "Offers/pdf/{$currentYear}/{$currentMonth}/{$pdfFileName}";
-
-    //     // Generate the full URL for the uploaded file
-    //     $fileUrl = asset($pdfPath);
-
-    //     if ($request->has('sendbywhatshapp')) {
-    //         if (!str_starts_with($phone, '+91')) {
-    //             $phone = '+91' . $phone;
-    //         }
-
-    //         $apiKey = 'EfJ3kJdXG6cz';
-    //         $whatsappApiUrl = 'http://api.textmebot.com/send.php';
-    //         $response = Http::get($whatsappApiUrl, [
-    //             'recipient' => $phone,
-    //             'apikey' => $apiKey,
-    //             'text' => $message,
-    //             'file' => $fileUrl,
-    //         ]);
-
-    //         if (!$response->successful()) {
-    //             return response()->json(['error' => 'Failed to send message via WhatsApp.']);
-    //         }
-    //     }
-
-    //     if ($request->has('sendbyemail')) {
-    //         $to = 'manjeetchand01@gmail.com';
-    //         $boundary = md5(uniqid(time()));
-
-    //         $headers = "MIME-Version: 1.0\r\n";
-    //         $headers .= "Content-Type: multipart/mixed; boundary=\"{$boundary}\"\r\n";
-    //         $headers .= "From: info@adxventure.com\r\n";
-
-    //         $body = "--{$boundary}\r\n";
-    //         $body .= "Content-Type: text/html; charset=UTF-8\r\n";
-    //         $body .= "Content-Transfer-Encoding: 7bit\r\n\r\n";
-    //         $body .= nl2br($message) . "\r\n";
-
-    //         $fileContent = file_get_contents($pdfPath);
-    //         $fileContentEncoded = chunk_split(base64_encode($fileContent));
-
-    //         $body .= "--{$boundary}\r\n";
-    //         $body .= "Content-Type: application/pdf; name=\"{$pdfFileName}\"\r\n";
-    //         $body .= "Content-Transfer-Encoding: base64\r\n";
-    //         $body .= "Content-Disposition: attachment; filename=\"{$pdfFileName}\"\r\n\r\n";
-    //         $body .= $fileContentEncoded . "\r\n";
-    //         $body .= "--{$boundary}--";
-
-    //         mail($to, $subject, $body, $headers);
-    //     }
-
-    //     return response()->json(['success' => 'Message sent successfully.']);
-    // }
 
     public function offer_message(Request $request)
     {
@@ -2343,149 +2176,6 @@ HTML;
             return response()->json(['error' => 'Something went wrong !, Please try again later.']);
         }
     }
-
-
-    // public function offer_message(Request $request)
-    // {
-
-    //     $validator = Validator::make($request->all(), [
-    //         'message_user' => 'required|numeric',
-    //         'offer_message' => 'required',
-    //         'attachment' => 'required|file|mimes:jpeg,png,jpg,pdf,svg|max:2048',
-    //         'sendbywhatshapp' => 'required_without_all:sendbyemail',
-    //         'sendbyemail' => 'required_without_all:sendbywhatshapp',
-    //     ], [
-    //         'required_without_all' => 'Please select at least one option: Mail or WhatsApp.',
-    //     ]);
-
-    //     if ($validator->fails()) {
-    //         return response()->json(['errors' => $validator->errors()]);
-    //     }
-
-    //     $lead = Lead::findOrFail($request->message_user);
-    //     $name = $lead->name;
-    //     $phone = $lead->phone;
-    //     $email = $lead->email;
-
-    //     $subject = "Payment Details for Your Project";
-    //     $message = "Dear " . $name . ",\n" .
-    //         "We hope this message finds you well.\n" .
-    //         "\n".$request->offer_message.".\n\n" .
-    //         "Thank you,\n Adxventure\n";
-
-    //     // Handle file upload with `move`
-    //     $uploadedFile = $request->file('attachment');
-    //     $currentYear = date('Y');
-    //     $currentMonth = date('m');
-    //     // $directoryPath = "/home4/adxventure/tms.adxventure.com/Offers/pdf/{$currentYear}/{$currentMonth}";entMonth}";
-    //     $directoryPath = public_path('/Offers/pdf/' . $currentYear . '/' . $currentMonth);
-
-    //     // Ensure the directory exists
-    //     if (!file_exists($directoryPath)) {
-    //         mkdir($directoryPath, 0755, true);
-    //     }
-
-    //         $pdfFileName = time() . '_' . $uploadedFile->getClientOriginalName(); // Add a unique timestamp prefix
-    //     $pdfPath = $directoryPath . '/' . $pdfFileName;
-    //     // $pathName = "tms.adxventure.com/Offers/pdf/{$currentYear}/{$currentMonth}" . '/' . $pdfFileName;
-    //     $pathName = '/Offers/pdf/' . $currentYear . '/' . $currentMonth . '/' . $pdfFileName;
-    //     // dd($pdfPath);
-    //     // Move the file to the directory
-    //     try {
-    //         // Attempt to move the file
-    //         if (!$uploadedFile->move($directoryPath, $pdfFileName)) {
-    //             throw new \Exception("The file could not be moved to the destination directory.");
-    //         }
-
-    //     } catch (\Exception $e) {
-    //         // Return error response if the file move fails
-    //         return response()->json(['error' => 'Failed to save file: ' . $e->getMessage()]);
-    //     }
-
-    //     // Generate the full URL for the uploaded file
-    //     $fileUrl = asset("Offers/pdf/{$currentYear}/{$currentMonth}/{$pdfFileName}");
-
-    //     if ($request->has('sendbywhatshapp')) {
-
-    //         $messages = Message::create([
-    //             'lead_id' =>  $lead->id,
-    //             'type' => 2,
-    //             'message' => $message,
-    //             'pdf' =>$pathName,
-    //         ]);
-
-    //             if (!str_starts_with($phone, '+91')) {
-    //                 $phone= explode('-',$phone);
-
-    //                 $phone = '+91' . $phone['1'];
-    //             }
-
-    //         // $phone = '919997294527';
-    //         $apiKey = 'EfJ3kJdXG6cz';
-    //         $whatsappApiUrl = 'http://api.textmebot.com/send.php';
-    //         $mimeType = $uploadedFile->getClientMimeType();
-    //         // dd($phone);
-    //         if ($mimeType === 'application/pdf') {
-
-    //             $response = Http::get($whatsappApiUrl, [
-    //                 'recipient' => $phone,
-    //                 'apikey' => $apiKey,
-    //                 'text' => $message,
-    //                 'document' => $fileUrl,
-    //             ]);
-    //         } else {
-    //             $response = Http::get($whatsappApiUrl, [
-    //                 'recipient' => $phone,
-    //                 'apikey' => $apiKey,
-    //                 'text' => $message,
-    //                 'file' => $fileUrl,
-    //             ]);
-    //         }
-
-
-    //         if (!$response->successful()) {
-    //             return response()->json(['error' => 'Failed to send message via WhatsApp.']);
-    //         }
-    //     }
-
-    //     if ($request->has('sendbyemail')) {
-
-    //         $message = Message::create([
-    //             'lead_id' =>  $lead->id,
-    //             'type' => 1,
-    //             'message' => $message,
-    //             'pdf' =>$pathName ,
-    //         ]);
-
-    //         $to = $email;
-    //         $boundary = md5(uniqid(time()));
-
-    //         $headers = "MIME-Version: 1.0\r\n";
-    //         $headers .= "Content-Type: multipart/mixed; boundary=\"{$boundary}\"\r\n";
-    //         $headers .= "From: info@adxventure.com\r\n";
-
-    //         $body = "--{$boundary}\r\n";
-    //         $body .= "Content-Type: text/html; charset=UTF-8\r\n";
-    //         $body .= "Content-Transfer-Encoding: 7bit\r\n\r\n";
-    //         $body .= nl2br($message) . "\r\n";
-
-    //         $fileContent = file_get_contents($pdfPath);
-    //         $fileContentEncoded = chunk_split(base64_encode($fileContent));
-
-    //         $body .= "--{$boundary}\r\n";
-    //         $body .= "Content-Type: application/pdf; name=\"{$pdfFileName}\"\r\n";
-    //         $body .= "Content-Transfer-Encoding: base64\r\n";
-    //         $body .= "Content-Disposition: attachment; filename=\"{$pdfFileName}\"\r\n\r\n";
-    //         $body .= $fileContentEncoded . "\r\n";
-    //         $body .= "--{$boundary}--";
-
-    //         mail($to, $subject, $body, $headers);
-    //     }
-
-    //     return response()->json(['success' => 'Message sent successfully.']);
-    // }
-
-
     public function messages($id)
     {
         $messages = Message::where('lead_id', $id)->orderBy('id', 'desc')->paginate(20);
@@ -2608,33 +2298,6 @@ HTML;
                         }
                         return response()->json(['success' => 'Message sent successfully.']);
 
-                        //send by Email
-                        // if ($request->has('sendbyemail')) {
-
-                        //     $to = 'manjeetchand01@gmail.com';
-                        //     $boundary = md5(uniqid(time()));
-
-                        //     $headers = "MIME-Version: 1.0\r\n";
-                        //     $headers .= "Content-Type: multipart/mixed; boundary=\"{$boundary}\"\r\n";
-                        //     $headers .= "From: info@adxventure.com\r\n";
-
-                        //     $body = "--{$boundary}\r\n";
-                        //     $body .= "Content-Type: text/html; charset=UTF-8\r\n";
-                        //     $body .= "Content-Transfer-Encoding: 7bit\r\n\r\n";
-                        //     $body .= nl2br($message) . "\r\n";
-
-                        //     $fileContent = file_get_contents($pdfPath);
-                        //     $fileContentEncoded = chunk_split(base64_encode($fileContent));
-
-                        //     $body .= "--{$boundary}\r\n";
-                        //     $body .= "Content-Type: application/pdf; name=\"{$pdfFileName}\"\r\n";
-                        //     $body .= "Content-Transfer-Encoding: base64\r\n";
-                        //     $body .= "Content-Disposition: attachment; filename=\"{$pdfFileName}\"\r\n\r\n";
-                        //     $body .= $fileContentEncoded . "\r\n";
-                        //     $body .= "--{$boundary}--";
-
-                        //     mail($to, $subject, $body, $headers);
-                        // }
 
                     }
                 }
@@ -2710,221 +2373,3 @@ HTML;
         }
     }
 }
-
-
-
-    // public function index(Request $request)
-    // {
-    //     $projectCategories = ProjectCategory::all();
-    //     $query = $this->initializeLeadQuery();
-
-    //     $this->applyFilters($query, $request);
-    //     $leadCounts = $this->initializeLeadCounts();
-    //     $userRoleData = $this->handleRoleBasedLogic(auth()->user(), $query);
-    
-    //     $users = $this->retrieveUsers(auth()->user());
-    //     $reports = $this->reports(auth()->user());
-    //     $categories = Category::with('lead')->orderBy('name', 'asc')->get();
-    //     $services = ProjectCategory::with('lead')->orderBy('name', 'asc')->get();
-    //     $templates = Template::where('category','common')->where('type',1)->orderBy('title','asc')->get();
-    //     $messagetemplates = Template::where('category','common')->where('type',3)->orderBy('title','asc')->get();
-    //     $countries = Country::orderBy('nicename', 'asc')->get(['id', 'nicename', 'phonecode']);
-
-    //     if ($request->today_report == 1) {
-    //         $startDate = $request->start_date;
-    //         $endDate = $request->end_date;
-    
-    //         if ($startDate === $endDate) {
-    //             $endDate = date('Y-m-d 23:59:59', strtotime($endDate));
-    //             $startDate = date('Y-m-d 00:00:00', strtotime($startDate)); 
-    //         } else {
-    //             $startDate = date('Y-m-d 00:00:00', strtotime($startDate));
-    //             $endDate = date('Y-m-d 23:59:59', strtotime($endDate));
-    //         }
-        
-    //         // Filter the data based on the date range
-    //         $todayLeads = Lead::whereBetween('created_at', [$startDate, $endDate])->count();
-    //         $todayFollowup = Followup::whereBetween('created_at', [$startDate, $endDate])->count();
-    //         $todayProposal = Proposal::whereBetween('created_at', [$startDate, $endDate])->count();
-    //         $todayMessage = Email::whereBetween('created_at', [$startDate, $endDate])->count(); // Assuming 'Message' for SMS
-    //         $todayEmail = Email::whereBetween('created_at', [$startDate, $endDate])->count();
-    //         $todaySms = Email::whereBetween('created_at', [$startDate, $endDate])->count(); // Assuming Sms model
-    //         $todayRevenue = TotalAmount::whereBetween('created_at', [$startDate, $endDate])->sum('pay');
-    //         $todayProposalAmount = TotalAmount::whereBetween('created_at', [$startDate, $endDate])->sum('total_amount');
-    //         $todayExpenss = Expenses::whereBetween('created_at', [$startDate, $endDate])->count();
-    //         return response()->json([
-    //             'today_leads' => $todayLeads,
-    //             'today_followup' => $todayFollowup,
-    //             'today_proposal' => $todayProposal,
-    //             'todayMessage' => $todayMessage,
-    //             'todayEmail' => $todayEmail,
-    //             'todaySms' => $todaySms,
-    //             'todayRevenue' => $todayRevenue,
-    //             'todayProposalAmount' => $todayProposalAmount,
-    //             'todayExpenses' => $todayExpenss,
-    //         ]);
-    //     }else{
-    //         $todayLeads = Lead::whereDate('created_at',Carbon::today())->count();
-    //         $todayFollowup = Followup::whereDate('created_at',Carbon::today())->count();
-    //         $todayProposal = Proposal::whereDate('created_at',Carbon::today())->count();
-    //         $todayMessage = Email::whereDate('created_at', Carbon::today())->count(); // Assuming 'Message' for SMS
-    //         $todayEmail = Email::whereDate('created_at', Carbon::today())->count();
-    //         $todaySms = Email::whereDate('created_at', Carbon::today())->count(); // Assuming Sms model
-    //         $todayRevenue = TotalAmount::whereDate('created_at', Carbon::today())->sum('pay');
-    //         $todayProposalAmount = TotalAmount::whereDate('created_at', Carbon::today())->sum('total_amount');
-    //         $todayExpenss = Expenses::whereDate('created_at', Carbon::today())->count();
-    //     }
-        
-    //     \Log::info($query->toSql(), $query->getBindings());
-        
-    //     if ($request->ajax()) {
-    //         return view('admin.crm.partial.index-table', array_merge([
-    //             'projectCategories' => $projectCategories,
-    //             'users' => $users,
-    //             'categories' => $categories,
-    //             'services' => $services,
-    //             'client_name' => $request->input('client_name'),
-    //             'lead_status' => $request->input('lead_status'),
-    //             'date' => $request->input('date'),
-    //             'category' => $request->input('category'),
-    //             'service' => $request->input('service'),
-    //             'from_date' => $request->input('from_date'),
-    //             'to_date' => $request->input('to_date'),
-    //             'templates' => $templates,
-    //             'messagetemplates' => $messagetemplates,
-    //             'countries' => $countries,
-    //             'bdeReports' => $reports,
-    //         ], $leadCounts, $userRoleData))->render();  
-    //     }
-        
-    //     return view('admin.crm.index', array_merge([
-    //         'projectCategories' => $projectCategories,
-    //         'users' => $users,
-    //         'categories' => $categories,
-    //         'services' => $services,
-    //         'client_name' => $request->input('client_name'),
-    //         'lead_status' => $request->input('lead_status'),
-    //         'date' => $request->input('date'),
-    //         'category' => $request->input('category'),
-    //         'service' => $request->input('service'),
-    //         'from_date' => $request->input('from_date'),
-    //         'to_date' => $request->input('to_date'),
-    //         'templates' => $templates,
-    //         'messagetemplates' => $messagetemplates,
-    //         'countries' => $countries,
-    //         'bdeReports' => $reports,
-    //         'today_leads' => $todayLeads,
-    //         'today_followup' => $todayFollowup,
-    //         'today_proposal' => $todayProposal,
-    //         'todayMessage' => $todayMessage,
-    //         'todayEmail' => $todayEmail,
-    //         'todaySms' => $todaySms,
-    //         'todayRevenue' => $todayRevenue,
-    //         'todayProposalAmount' => $todayProposalAmount,
-    //         'todayExpenses' => $todayExpenss,
-    //     ], $leadCounts, $userRoleData));
-    // }
-
-
-
-
-    // public function index(Request $request)
-    // {
-    //     $projectCategories = ProjectCategory::all();
-    //     $query = $this->initializeLeadQuery();
-
-    //     $this->applyFilters($query, $request);
-    //     $leadCounts = $this->initializeLeadCounts();
-    //     $userRoleData = $this->handleRoleBasedLogic(auth()->user(), $query);
-    
-    //     $users = $this->retrieveUsers(auth()->user());
-    //     $reports = $this->reports(auth()->user());
-    //     $categories = Category::with('lead')->orderBy('name', 'asc')->get();
-    //     $services = ProjectCategory::with('lead')->orderBy('name', 'asc')->get();
-    //     $templates = Template::where('category','common')->where('type',1)->orderBy('title','asc')->get();
-    //     $messagetemplates = Template::where('category','common')->where('type',3)->orderBy('title','asc')->get();
-    //     $countries = Country::orderBy('nicename', 'asc')->get(['id', 'nicename', 'phonecode']);
-
-    //     if ($request->today_report == 1) {
-    //         $startDate = $request->start_date;
-    //         $endDate = $request->end_date;
-    
-    //         if ($startDate === $endDate) {
-    //             $endDate = date('Y-m-d 23:59:59', strtotime($endDate));
-    //             $startDate = date('Y-m-d 00:00:00', strtotime($startDate)); 
-    //         } else {
-    //             $startDate = date('Y-m-d 00:00:00', strtotime($startDate));
-    //             $endDate = date('Y-m-d 23:59:59', strtotime($endDate));
-    //         }
-        
-    //         // Filter the data based on the date range
-    //         $todayLeads = Lead::whereBetween('created_at', [$startDate, $endDate])->count();
-    //         $todayFollowup = Followup::whereBetween('created_at', [$startDate, $endDate])->count();
-    //         $todayProposal = Proposal::whereBetween('created_at', [$startDate, $endDate])->count();
-    //         $todayMessage = Email::whereBetween('created_at', [$startDate, $endDate])->count(); // Assuming 'Message' for SMS
-    //         $todayEmail = Email::whereBetween('created_at', [$startDate, $endDate])->count();
-    //         $todaySms = Email::whereBetween('created_at', [$startDate, $endDate])->count(); // Assuming Sms model
-    //         $todayRevenue = TotalAmount::whereBetween('created_at', [$startDate, $endDate])->sum('pay');
-    //         $todayProposalAmount = TotalAmount::whereBetween('created_at', [$startDate, $endDate])->sum('total_amount');
-    //         $todayExpenss = Expenses::whereBetween('created_at', [$startDate, $endDate])->count();
-    //         return response()->json([
-    //             'today_leads' => $todayLeads,
-    //             'today_followup' => $todayFollowup,
-    //             'today_proposal' => $todayProposal,
-    //             'todayMessage' => $todayMessage,
-    //             'todayEmail' => $todayEmail,
-    //             'todaySms' => $todaySms,
-    //             'todayRevenue' => $todayRevenue,
-    //             'todayProposalAmount' => $todayProposalAmount,
-    //             'todayExpenses' => $todayExpenss,
-    //         ]);
-    //     }else{
-    //         $todayLeads = Lead::whereDate('created_at',Carbon::today())->count();
-    //         $todayFollowup = Followup::whereDate('created_at',Carbon::today())->count();
-    //         $todayProposal = Proposal::whereDate('created_at',Carbon::today())->count();
-    //         $todayMessage = Email::whereDate('created_at', Carbon::today())->count(); // Assuming 'Message' for SMS
-    //         $todayEmail = Email::whereDate('created_at', Carbon::today())->count();
-    //         $todaySms = Email::whereDate('created_at', Carbon::today())->count(); // Assuming Sms model
-    //         $todayRevenue = TotalAmount::whereDate('created_at', Carbon::today())->sum('pay');
-    //         $todayProposalAmount = TotalAmount::whereDate('created_at', Carbon::today())->sum('total_amount');
-    //         $todayExpenss = Expenses::whereDate('created_at', Carbon::today())->count();
-    //     }
-        
-    //     \Log::info($query->toSql(), $query->getBindings());
-
-    //     if ($request->ajax()) {
-    //         return response()->json([
-    //             'leads' => view('admin.crm.partial.index-table', compact('userRoleData'))->render(),
-    //             'pagination' => view('admin.crm.partial.pagination', [
-    //                 'leads' => $userRoleData->appends($request->except('page')), 
-    //             ])->render(),
-    //         ]);
-    //     }
-
-    //     return view('admin.crm.index', array_merge([
-    //         'projectCategories' => $projectCategories,
-    //         'users' => $users,
-    //         'categories' => $categories,
-    //         'services' => $services,
-    //         'client_name' => $request->input('client_name'),
-    //         'lead_status' => $request->input('lead_status'),
-    //         'date' => $request->input('date'),
-    //         'category' => $request->input('category'),
-    //         'service' => $request->input('service'),
-    //         'from_date' => $request->input('from_date'),
-    //         'to_date' => $request->input('to_date'),
-    //         'templates' => $templates,
-    //         'messagetemplates' => $messagetemplates,
-    //         'countries' => $countries,
-    //         'bdeReports' => $reports,
-    //         'today_leads' => $todayLeads,
-    //         'today_followup' => $todayFollowup,
-    //         'today_proposal' => $todayProposal,
-    //         'todayMessage' => $todayMessage,
-    //         'todayEmail' => $todayEmail,
-    //         'todaySms' => $todaySms,
-    //         'todayRevenue' => $todayRevenue,
-    //         'todayProposalAmount' => $todayProposalAmount,
-    //         'todayExpenses' => $todayExpenss,
-    //     ], $leadCounts, $userRoleData));
-    // }
