@@ -94,7 +94,7 @@
         </div>
         <div class="col-12 col-md-6 col-xl-3">
             {{-- Hardcoded Debt Invoice as per original --}}
-            <div class="card info-card border-0 shadow-sm h-100">
+            <div class="card info-card border-0 shadow-sm h-100" style="max-height:120px !important;height:110px;">
                 <div class="card-body p-3">
                     <div class="d-flex align-items-center justify-content-between mb-2">
                         <h6 class="card-title text-muted text-uppercase mb-0 small fw-bold">Debt Invoice</h6>
@@ -147,49 +147,83 @@
                 'color' => 'danger',
             ])
         </div>
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="card info-card border-0 shadow-sm h-100" style="max-height:120px !important;height:110px;">
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <h6 class="card-title text-muted mb-0 small fw-bold h6">FOLLOWUP</h6>
+                        <div class="icon-box bg-light text-primary">
+                            <i class="bi bi-people-fill"></i>
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-end">
+                        <div>
+                            <h4 class="fw-bold mb-0">0</h4>
+                            <small class="text-muted">Count</small>
+                        </div>
+                        <div class="text-end">
+                            <h5 class="fw-bold mb-0 text-dark">0</h5>
+                            <small class="text-muted">Amount</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <div class="col-12 col-md-6 col-xl-3">
-            <div class="card info-card border-0 shadow-sm h-100 bg-light">
+            <div class="card info-card border-0 shadow-sm h-100" style="max-height:120px !important;height:110px;">
                 <div class="card-body p-3">
-                    <h6 class="card-title text-muted text-uppercase mb-3 small fw-bold">Financial Overview</h6>
-                    <div class="d-flex justify-content-between border-bottom pb-2 mb-2">
-                        <span>Total</span>
-                        <span class="fw-bold" id="totalInvoicePrice">{{ $todayTotalInvoicePrice }}</span>
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <h6 class="card-title text-muted mb-0 small fw-bold h6">TOTAL GST</h6>
+                        <div class="icon-box bg-light text-secondary">
+                            <i class="bi bi-receipt"></i>
+                        </div>
                     </div>
-                    <div class="d-flex justify-content-between border-bottom pb-2 mb-2">
-                        <span>Paid</span>
-                        <span class="fw-bold text-success" id="todayPayInvoicePrice">{{ $todayPayInvoicePrice }}</span>
+                    <div class="d-flex justify-content-between align-items-end">
+                        <div>
+                            <h4 class="fw-bold mb-0">0</h4>
+                            <small class="text-muted">Count</small>
+                        </div>
+                        <div class="text-end">
+                            <h5 class="fw-bold mb-0 text-dark" id="todayGSTPrice">{{ $todayGSTPrice }}</h5>
+                            <small class="text-muted">Amount</small>
+                        </div>
                     </div>
-                    <div class="d-flex justify-content-between">
-                        <span>Balance</span>
-                        <span class="fw-bold text-danger" id="todayBalancePrice">{{ $todayBalancePrice }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="card info-card border-0 shadow-sm h-100" style="max-height:120px !important; min-height:110px;">
+                <div class="card-body p-3 d-flex flex-column justify-content-between">
+
+                    <h6 class="card-title text-muted mb-0 small fw-bold text-uppercase">Financial Overview</h6>
+
+                    <div class="d-flex flex-wrap justify-content-between align-items-end gap-2">
+
+                        <div>
+                            <span class="d-block text-muted" style="font-size: 0.7rem;">Total</span>
+                            <span class="fw-bold text-dark fs-6"
+                                id="totalInvoicePrice">{{ $todayTotalInvoicePrice }}</span>
+                        </div>
+
+                        <div class="text-end text-md-center">
+                            <span class="d-block text-muted" style="font-size: 0.7rem;">Paid</span>
+                            <span class="fw-bold text-success fs-6"
+                                id="todayPayInvoicePrice">{{ $todayPayInvoicePrice }}</span>
+                        </div>
+
+                        <div class="text-end">
+                            <span class="d-block text-muted" style="font-size: 0.7rem;">Balance</span>
+                            <span class="fw-bold text-danger fs-6"
+                                id="todayBalancePrice">{{ $todayBalancePrice }}</span>
+                        </div>
+
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="col-12 col-md-6">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body d-flex align-items-center p-3">
-                    <div class="icon-box bg-light text-primary me-3"><i class="bi bi-people-fill"></i></div>
-                    <div>
-                        <h6 class="text-muted text-uppercase small fw-bold mb-1">Followup</h6>
-                        <h4 class="mb-0 fw-bold">0</h4>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-12 col-md-6">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body d-flex align-items-center p-3">
-                    <div class="icon-box bg-light text-secondary me-3"><i class="bi bi-receipt"></i></div>
-                    <div>
-                        <h6 class="text-muted text-uppercase small fw-bold mb-1">Total GST</h6>
-                        <h4 class="mb-0 fw-bold" id="todayGSTPrice">{{ $todayGSTPrice }}</h4>
-                    </div>
-                </div>
-            </div>
-        </div>
+
     </div>
 
     <div class="row g-3">
@@ -409,7 +443,7 @@
             // Loading State
             $btn.prop('disabled', true).html(
                 '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Loading...'
-                );
+            );
 
             $.ajax({
                 url: config.urls.filter,

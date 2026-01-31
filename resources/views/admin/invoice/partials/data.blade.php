@@ -54,26 +54,7 @@
                                 @endforeach
                             @endif
                         </td>
-                        {{--<td>
-                            @if($d->send_date)
-                            Send Date: <strong>
-                                {{ \Carbon\Carbon::parse($d->send_date)->format('d-m-Y / H:i:s') }}
-                            </strong>
-                            @endif
-                            <br>
-                            @if($d->send_date)
-                            @php
-                            $delayInDays =
-                            \Carbon\Carbon::parse($d->send_date)->diffInDays(\Carbon\Carbon::parse($d->in_date));
-                            @endphp
-                            @if($delayInDays >= 1)
-                            <strong class="text-danger" style="cursor:pointer" data-bs-toggle="modal"
-                                data-bs-target="#delayreson{{ $d->id }}">
-                                Delay: {{ $delayInDays }} Days
-                            </strong>
-                            @endif
-                            @endif
-                        </td> --}}
+                        
                         <td>
                         @php 
                             $latestPayment = $d->payment()->latest('created_at')->first();
@@ -134,11 +115,7 @@
                             @else
                                 <strong class="badge bg-danger">Unpaid</strong><br>
                             @endif
-                            {{-- Subtotal Amount: <b>{{$d->currency ?? 'N/A' }} {{$d->subtotal_amount}}</b><br>
-                            @if($d->discount)
-                            Discount:<b>{{$d->currency ?? 'N/A' }} {{$d->discount}}</b><br>
-                            @endif
-                            GST Amount :<b>{{$d->currency ?? 'N/A' }} {{$d->gst_amount}}</b><br> --}}
+                          
                         </td>
                         <td>
                             <a class="btn btn-sm btn-primary"  onclick="Followup({{$d->id}},'{{$d->client->name ?? $d->lead->name }}')">Followup 
@@ -171,13 +148,7 @@
                             @endif  
 
                             <div class="btn-group">
-                            {{-- <button class="btn btn-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                Send Again
-                            </button>
-                            <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{{route('invoice.again.send',['invoice_id'=>$d->id,'id'=>1])}}">Send By Whatsapp</a></li>
-                            <li><a class="dropdown-item" href="{{route('invoice.again.send',['invoice_id'=>$d->id,'id'=>2])}} ">Send By Mail</a></li>
-                            </ul> --}}
+                            
                             </div>
                         </td>
                         <td>
@@ -205,42 +176,7 @@
                                     @else
                                     <li><a class="dropdown-item active" href="#">Cancel</a></li>
                                     @endif
-                                    
-                                    {{--
-                                    @if($d->pay_status == "1" || $d->pay_status == "2"  || $d->pay_status == "3")
-                                    <li><a href="{{ route('payments.Index', $d->id) }}"
-                                    class="dropdown-item">View Payments</a></li>
-                                    @endif
-                                    @if($d->status == "2")
-                                    <li><a class="dropdown-item"
-                                            href="{{ route('invoice.status', ['status' => '0', 'id' => $d->id]) }}">Mark
-                                            as a Debt</a>
-                                    </li>
-                                
-                                    @if($d->status != "2")
-                                    <li><a class="dropdown-item" data-bs-toggle="modal"
-                                            data-bs-target="#myModal{{$d->id}}">Mark as a Paid</a></li>
-                                    @endif
-
-                                    @else
-                                    <li><a class="dropdown-item" href="#" @if($d->in_date >=
-                                            today()->toDateString())
-                                            onclick="confirmResend(); return false;"
-                                            @else
-                                            data-bs-toggle="modal"
-                                            data-bs-target="#delay{{$d->id}}"
-                                            @endif>Mail Send</a>
-                                    </li>
-                                    <!-- <li><a class="dropdown-item editForm"
-                                            data-clientId="{{ $d->client_id }}"
-                                            data-date="{{ $d->in_date }}" data-id="{{ $d->id }}"
-                                            href="javascript:void(0)">Edit</a>
-                                    </li> -->
-                                    <li><a class="dropdown-item" data-bs-toggle="modal"
-                                            data-bs-target="#GenrateInvoice{{$d->id}}">Edit</a>
-                                    </li>
-                                    @endif
-                                    --}}
+                                   
                                 </ul>
                             </div>
                         </td>
