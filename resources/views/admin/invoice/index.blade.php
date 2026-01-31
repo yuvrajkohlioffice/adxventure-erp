@@ -889,20 +889,6 @@
 
 </script>
 
-    <!-- <script>
-    function showAmount(value) {
-        var amount = document.getElementById('amount_field');
-
-        if (value == 'Partial') {
-            amount.style.display = 'block';
-            console.log(amount);
-        } else {
-            amount.style.display = 'none';
-            console.log(amount);
-        }
-        amount.style.display = 'none';
-    }
-    </script> -->
     <script>
         function getProject(clientId) {
             $.ajax({
