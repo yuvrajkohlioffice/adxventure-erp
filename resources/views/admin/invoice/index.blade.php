@@ -2,6 +2,15 @@
     @section('title','Invoice')
     <meta name="csrf-token" content="{{ csrf_token() }}">
     @include('admin.invoice.invoice-card') 
+    <style>
+        .dashboard .info-card h6 {
+  font-size: 20px !important;
+  color: #012970;
+  font-weight: 600 !important;
+  margin: 0;
+  padding: 0;
+}
+        </style>
     @include('include.alert')
     <section class="section mt-5">
         <div class="row">
