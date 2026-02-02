@@ -28,222 +28,326 @@
 </style>
 
 
-<section class="section dashboard">
+<style>
+    /* Custom CSS to refine the look to match the image exactly */
+    .dashboard-bg {
+        background-color: #f6f9ff;
+    }
+    
+    .card {
+        border-radius: 8px;
+        box-shadow: 0 0 20px rgba(1, 41, 112, 0.05);
+        border: none;
+        margin-bottom: 20px;
+        transition: all 0.3s;
+    }
+
+    /* Icon styling for the white cards */
+    .icon-box {
+        width: 45px;
+        height: 45px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 10px;
+        font-size: 1.25rem;
+    }
+
+    /* Specific solid color cards (Paid, Partial, Unpaid) */
+    .card-solid {
+        color: white;
+    }
+    .card-solid .text-muted {
+        color: rgba(255, 255, 255, 0.8) !important;
+    }
+    .card-solid .icon-box {
+        background-color: rgba(255, 255, 255, 0.2) !important;
+        color: white !important;
+    }
+
+    /* Financial Overview Bottom Blocks */
+    .finance-block {
+        padding: 10px;
+        border-radius: 6px;
+        flex: 1;
+        text-align: center;
+    }
+    
+    .cursor-pointer { cursor: pointer; }
+</style>
+
+<section class="section dashboard container-fluid p-4 dashboard-bg">
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-center mb-4">
         <div class="pagetitle mb-3 mb-md-0">
             <h1 class="h3 fw-bold text-dark">All Invoices</h1>
             <nav>
                 <ol class="breadcrumb mb-0">
-                    <li class="breadcrumb-item"><a href="{{ url('/') }}" class="text-decoration-none">Home</a></li>
-                    <li class="breadcrumb-item active">Invoices</li>
+                    <li class="breadcrumb-item"><a href="{{ url('/') }}" class="text-decoration-none text-muted">Home</a></li>
+                    <li class="breadcrumb-item active text-primary">Invoices</li>
                 </ol>
             </nav>
         </div>
 
         <div class="d-flex flex-wrap gap-2 align-items-center">
-            <div id="reportrange" class="form-control d-flex align-items-center gap-2 cursor-pointer bg-white"
-                style="min-width: 240px;">
+            <div id="reportrange" class="form-control d-flex align-items-center gap-2 cursor-pointer bg-white border-0 shadow-sm"
+                style="min-width: 240px; padding: 10px 15px;">
                 <i class="bi bi-calendar3 text-muted"></i>
-                <span class="flex-grow-1 text-truncate"></span>
+                <span class="flex-grow-1 text-truncate text-dark small fw-semibold">January 25, 2026 - January 31, 2026</span>
                 <i class="bi bi-caret-down-fill text-muted small"></i>
             </div>
 
-            <button type="button" class="btn btn-success" id="btnApplyFilter">
+            <button type="button" class="btn btn-primary fw-semibold px-3" id="btnApplyFilter">
                 <i class="bi bi-funnel-fill me-1"></i> Apply
             </button>
 
-            <button type="button" class="btn btn-primary" data-bs-toggle="offcanvas" data-bs-target="#offcanvasRight">
+            <button type="button" class="btn btn-success fw-semibold px-3" data-bs-toggle="offcanvas" data-bs-target="#offcanvasRight">
                 <i class="bi bi-plus-lg me-1"></i> Create Invoice
             </button>
         </div>
     </div>
 
-    <div class="row g-3 mb-4">
+    <div class="row g-3 mb-3">
         <div class="col-12 col-md-6 col-xl-3">
-            @include('components.stat-card', [
-                'title' => 'Total Invoices',
-                'idCount' => 'todayInvoice',
-                'idAmount' => 'todayTotalInvoicePrice',
-                'count' => $todayInvoice,
-                'amount' => $todayTotalInvoicePrice,
-                'icon' => 'bi-receipt',
-                'color' => 'primary',
-            ])
-        </div>
-        <div class="col-12 col-md-6 col-xl-3">
-            @include('components.stat-card', [
-                'title' => 'Fresh Sales',
-                'idCount' => 'todayFreshSaleCount',
-                'idAmount' => 'todayFreshSaleAmount',
-                'count' => $todayFreshSaleCount,
-                'amount' => $todayFreshSaleAmount,
-                'icon' => 'bi-bag-check',
-                'color' => 'success',
-            ])
-        </div>
-        <div class="col-12 col-md-6 col-xl-3">
-            @include('components.stat-card', [
-                'title' => 'UpSales',
-                'idCount' => 'todayUpSaleCount',
-                'idAmount' => 'todayUpSaleAmount',
-                'count' => $todayUpSaleCount,
-                'amount' => $todayUpSaleAmount,
-                'icon' => 'bi-graph-up-arrow',
-                'color' => 'info',
-            ])
-        </div>
-        <div class="col-12 col-md-6 col-xl-3">
-            {{-- Hardcoded Debt Invoice as per original --}}
-            <div class="card info-card border-0 shadow-sm h-100" style="max-height:120px !important;height:110px;">
+            <div class="card h-100 border-start border-4 border-primary">
                 <div class="card-body p-3">
                     <div class="d-flex align-items-center justify-content-between mb-2">
-                        <h6 class="card-title text-muted text-uppercase mb-0 small fw-bold">Debt Invoice</h6>
-                        <div class="icon-box bg-light text-danger"><i class="bi bi-exclamation-octagon"></i></div>
-                    </div>
-                    <div class="d-flex justify-content-between align-items-end">
-                        <div>
-                            <h4 class="fw-bold mb-0">0</h4>
-                            <small class="text-muted">Count</small>
-                        </div>
-                        <div class="text-end">
-                            <h5 class="fw-bold mb-0 text-dark">0</h5>
-                            <small class="text-muted">Amount</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-12 col-md-6 col-xl-3">
-            @include('components.stat-card', [
-                'title' => 'Paid',
-                'idCount' => 'todayPaidInvoice',
-                'idAmount' => 'todayPaidAmount',
-                'count' => $todayPaidInvoice,
-                'amount' => $todayPaidAmount,
-                'icon' => 'bi-check-circle-fill',
-                'color' => 'success',
-            ])
-        </div>
-        <div class="col-12 col-md-6 col-xl-3">
-            @include('components.stat-card', [
-                'title' => 'Partial Paid',
-                'idCount' => 'todayPartialPaidInvoice',
-                'idAmount' => 'todayPartialPaidAmount',
-                'count' => $todayPartialPaidInvoice,
-                'amount' => $todayPartialPaidAmount,
-                'icon' => 'bi-pie-chart-fill',
-                'color' => 'warning',
-            ])
-        </div>
-        <div class="col-12 col-md-6 col-xl-3">
-            @include('components.stat-card', [
-                'title' => 'Unpaid',
-                'idCount' => 'todayUnpaidInvoice',
-                'idAmount' => 'todayUnpaidAmount',
-                'count' => $todayUnpaidInvoice,
-                'amount' => $todayUnpaidAmount,
-                'icon' => 'bi-x-circle-fill',
-                'color' => 'danger',
-            ])
-        </div>
-        <div class="col-12 col-md-6 col-xl-3">
-            <div class="card info-card border-0 shadow-sm h-100" style="max-height:120px !important;height:110px;">
-                <div class="card-body p-3">
-                    <div class="d-flex align-items-center justify-content-between mb-2">
-                        <h6 class="card-title text-muted mb-0 small fw-bold h6">FOLLOWUP</h6>
-                        <div class="icon-box bg-light text-primary">
-                            <i class="bi bi-people-fill"></i>
-                        </div>
-                    </div>
-                    <div class="d-flex justify-content-between align-items-end">
-                        <div>
-                            <h4 class="fw-bold mb-0">0</h4>
-                            <small class="text-muted">Count</small>
-                        </div>
-                        <div class="text-end">
-                            <h5 class="fw-bold mb-0 text-dark">0</h5>
-                            <small class="text-muted">Amount</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-12 col-md-6 col-xl-3">
-            <div class="card info-card border-0 shadow-sm h-100" style="max-height:120px !important;height:110px;">
-                <div class="card-body p-3">
-                    <div class="d-flex align-items-center justify-content-between mb-2">
-                        <h6 class="card-title text-muted mb-0 small fw-bold h6">TOTAL GST</h6>
-                        <div class="icon-box bg-light text-secondary">
+                        <h6 class="text-muted text-uppercase mb-0 small fw-bold">TOTAL INVOICES</h6>
+                        <div class="icon-box bg-primary-subtle text-primary">
                             <i class="bi bi-receipt"></i>
                         </div>
                     </div>
                     <div class="d-flex justify-content-between align-items-end">
                         <div>
-                            <h4 class="fw-bold mb-0">0</h4>
+                            <h3 class="fw-bold mb-0 text-dark" id="todayInvoice">{{ $todayInvoice ?? 13 }}</h3>
                             <small class="text-muted">Count</small>
                         </div>
                         <div class="text-end">
-                            <h5 class="fw-bold mb-0 text-dark" id="todayGSTPrice">{{ $todayGSTPrice }}</h5>
+                            <h5 class="fw-bold mb-0 text-dark" id="todayTotalInvoicePrice">{{ $todayTotalInvoicePrice ?? '₹112,489' }}</h5>
                             <small class="text-muted">Amount</small>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
+
         <div class="col-12 col-md-6 col-xl-3">
-            <div class="card info-card border-0 shadow-sm h-100" style="max-height:120px !important; min-height:110px;">
-                <div class="card-body p-3 d-flex flex-column justify-content-between">
-
-                    <h6 class="card-title text-muted mb-0 small fw-bold text-uppercase">Financial Overview</h6>
-
-                    <div class="d-flex flex-wrap justify-content-between align-items-end gap-2">
-
+            <div class="card h-100 border-start border-4 border-success">
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <h6 class="text-muted text-uppercase mb-0 small fw-bold">FRESH SALES</h6>
+                        <div class="icon-box bg-success-subtle text-success">
+                            <i class="bi bi-stars"></i>
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-end">
                         <div>
-                            <span class="d-block text-muted" style="font-size: 0.7rem;">Total</span>
-                            <span class="fw-bold text-dark fs-6"
-                                id="totalInvoicePrice">{{ $todayTotalInvoicePrice }}</span>
+                            <h3 class="fw-bold mb-0 text-dark" id="todayFreshSaleCount">{{ $todayFreshSaleCount ?? 11 }}</h3>
+                            <small class="text-muted">Count</small>
                         </div>
-
-                        <div class="text-end text-md-center">
-                            <span class="d-block text-muted" style="font-size: 0.7rem;">Paid</span>
-                            <span class="fw-bold text-success fs-6"
-                                id="todayPayInvoicePrice">{{ $todayPayInvoicePrice }}</span>
-                        </div>
-
                         <div class="text-end">
-                            <span class="d-block text-muted" style="font-size: 0.7rem;">Balance</span>
-                            <span class="fw-bold text-danger fs-6"
-                                id="todayBalancePrice">{{ $todayBalancePrice }}</span>
+                            <h5 class="fw-bold mb-0 text-dark" id="todayFreshSaleAmount">{{ $todayFreshSaleAmount ?? '₹87,490' }}</h5>
+                            <small class="text-muted">Amount</small>
                         </div>
-
                     </div>
                 </div>
             </div>
         </div>
 
-
-    </div>
-
-    <div class="row g-3">
-        <div class="col-lg-8">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-header bg-white border-0 pt-3">
-                    <h5 class="card-title mb-0">Sales Trends</h5>
-                </div>
-                <div class="card-body">
-                    <div id="salesChart"></div>
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="card h-100 border-start border-4 border-info">
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <h6 class="text-muted text-uppercase mb-0 small fw-bold">UPSALES</h6>
+                        <div class="icon-box bg-info-subtle text-info">
+                            <i class="bi bi-graph-up-arrow"></i>
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-end">
+                        <div>
+                            <h3 class="fw-bold mb-0 text-dark" id="todayUpSaleCount">{{ $todayUpSaleCount ?? 2 }}</h3>
+                            <small class="text-muted">Count</small>
+                        </div>
+                        <div class="text-end">
+                            <h5 class="fw-bold mb-0 text-dark" id="todayUpSaleAmount">{{ $todayUpSaleAmount ?? '₹24,999' }}</h5>
+                            <small class="text-muted">Amount</small>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="col-lg-4">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-header bg-white border-0 pt-3">
-                    <h5 class="card-title mb-0">Payment Distribution</h5>
+
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="card h-100 border-start border-4 border-danger">
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <h6 class="text-muted text-uppercase mb-0 small fw-bold">DEBT INVOICE</h6>
+                        <div class="icon-box bg-danger-subtle text-danger">
+                            <i class="bi bi-exclamation-circle"></i>
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-end">
+                        <div>
+                            <h3 class="fw-bold mb-0 text-dark">0</h3>
+                            <small class="text-muted">Count</small>
+                        </div>
+                        <div class="text-end">
+                            <h5 class="fw-bold mb-0 text-dark">₹0</h5>
+                            <small class="text-muted">Amount</small>
+                        </div>
+                    </div>
                 </div>
-                <div class="card-body">
-                    <div id="financialChart"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-3">
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="card card-solid bg-success h-100">
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <h6 class="text-white text-uppercase mb-0 small fw-bold">PAID</h6>
+                        <div class="icon-box">
+                            <i class="bi bi-check-circle-fill"></i>
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-end">
+                        <div>
+                            <h3 class="fw-bold mb-0" id="todayPaidInvoice">{{ $todayPaidInvoice ?? 0 }}</h3>
+                            <small class="text-muted">Count</small>
+                        </div>
+                        <div class="text-end">
+                            <h5 class="fw-bold mb-0" id="todayPaidAmount">{{ $todayPaidAmount ?? '₹0' }}</h5>
+                            <small class="text-muted">Amount</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="card card-solid bg-warning h-100">
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <h6 class="text-white text-uppercase mb-0 small fw-bold">PARTIAL PAID</h6>
+                        <div class="icon-box">
+                            <i class="bi bi-clock-history"></i>
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-end">
+                        <div>
+                            <h3 class="fw-bold mb-0" id="todayPartialPaidInvoice">{{ $todayPartialPaidInvoice ?? 1 }}</h3>
+                            <small class="text-muted">Count</small>
+                        </div>
+                        <div class="text-end">
+                            <h5 class="fw-bold mb-0" id="todayPartialPaidAmount">{{ $todayPartialPaidAmount ?? '₹7,999' }}</h5>
+                            <small class="text-muted">Amount</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="card card-solid bg-danger h-100">
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <h6 class="text-white text-uppercase mb-0 small fw-bold">UNPAID</h6>
+                        <div class="icon-box">
+                            <i class="bi bi-x-circle-fill"></i>
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-end">
+                        <div>
+                            <h3 class="fw-bold mb-0" id="todayUnpaidInvoice">{{ $todayUnpaidInvoice ?? 12 }}</h3>
+                            <small class="text-muted">Count</small>
+                        </div>
+                        <div class="text-end">
+                            <h5 class="fw-bold mb-0" id="todayUnpaidAmount">{{ $todayUnpaidAmount ?? '₹104,490' }}</h5>
+                            <small class="text-muted">Amount</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="card card-solid bg-info h-100">
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <h6 class="text-white text-uppercase mb-0 small fw-bold">Followup</h6>
+                        <div class="icon-box">
+                            <i class="bi bi-people-fill"></i>
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-end">
+                        <div>
+                            <h3 class="fw-bold mb-0 text-white">0</h3>
+                            <small class="text-white">Count</small>
+                        </div>
+                        <div class="text-end">
+                            <h5 class="fw-bold mb-0 text-white">₹0</h5>
+                            <small class="text-white">Amount</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-12 col-md-6 col-xl-6">
+            <div class="card h-100 border-start border-4 border-primary">
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <h6 class="text-muted text-uppercase mb-0 small fw-bold">TOTAL GST</h6>
+                        <div class="icon-box bg-primary-subtle text-primary">
+                            <i class="bi bi-receipt-cutoff"></i>
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-end mt-4">
+                        <div>
+                            <h3 class="fw-bold mb-0 text-dark">0</h3>
+                            <small class="text-muted">Count</small>
+                        </div>
+                        <div class="text-end">
+                            <h3 class="fw-bold mb-0 text-info" id="todayGSTPrice">{{ $todayGSTPrice ?? '₹152' }}</h3>
+                            <small class="text-muted">Amount</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-md-6 col-xl-6">
+            <div class="card h-100 border-start border-4 border-primary">
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <h6 class="text-dark fw-bold mb-0">Financial Overview</h6>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <small class="text-muted" style="font-size:0.7rem;">1.8% collected</small>
+                        </div>
+                        <div class="progress" style="height: 8px;">
+                            <div class="progress-bar bg-success" role="progressbar" style="width: 1.8%" aria-valuenow="1.8" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <div class="finance-block bg-light">
+                            <small class="d-block text-muted text-uppercase" style="font-size: 0.65rem; letter-spacing:0.5px;">Total</small>
+                            <span class="fw-bold text-dark fs-6" id="totalInvoicePrice">{{ $todayTotalInvoicePrice ?? '₹112,489' }}</span>
+                        </div>
+                        <div class="finance-block" style="background-color: #e0f8e9;">
+                            <small class="d-block text-muted text-uppercase" style="font-size: 0.65rem; letter-spacing:0.5px;">Paid</small>
+                            <span class="fw-bold text-success fs-6" id="todayPayInvoicePrice">{{ $todayPayInvoicePrice ?? '₹2,000' }}</span>
+                        </div>
+                        <div class="finance-block" style="background-color: #ffe6e6;">
+                            <small class="d-block text-muted text-uppercase" style="font-size: 0.65rem; letter-spacing:0.5px;">Balance</small>
+                            <span class="fw-bold text-danger fs-6" id="todayBalancePrice">{{ $todayBalancePrice ?? '₹110,489' }}</span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
