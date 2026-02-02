@@ -470,7 +470,10 @@
             'all_lead': '#sub-filter-today-fresh',
             'delay': '#sub-filter-delay',
             'rejects': '#sub-filter-reject',
-            'cold_clients': '#sub-filter-cold'
+            'cold_clients': '#sub-filter-cold',
+            'hot_client': '#sub-filter-hot',
+            'convert_leads': '#sub-filter-convert',
+            'fresh_lead': '#sub-filter-fresh'
         };
 
         // Hide all first

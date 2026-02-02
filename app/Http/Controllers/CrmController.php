@@ -485,231 +485,237 @@ HTML;
     }
 
     private function applyButtonFilter($query, $type, Request $request)
-    {
-        if ($type) {
-            switch ($type) {
-                case 'all_lead':
-                    // No additional filtering needed
-                    break;
-                case 'fresh_lead':
-                    $query->whereDoesntHave('Followup', function ($q) {
+{
+    if ($type) {
+        switch ($type) {
+            case 'all_lead':
+                // No additional filtering needed
+                break;
+
+            // --- NEW HOT CLIENT FILTERS ---
+            case 'hot_client':
+                // Filters all leads marked as Hot (Status 1)
+                $query->where('lead_status', 1); 
+                break;
+
+            case 'today_hot_client':
+                // Filters Hot leads that specifically have a followup Today
+                $query->where('lead_status', 1)
+                      ->whereHas('Followup', function ($q) {
+                          $q->whereDate('next_date', Carbon::today());
+                      });
+                break;
+            // ------------------------------
+
+            case 'fresh_lead':
+                $query->whereDoesntHave('Followup', function ($q) {
+                    $q->whereNotNull('lead_id');
+                });
+                break;
+            case 'convert_leads':
+                $query->where('status', 1);
+                break;
+            case 'today_fresh_lead':
+                $query->whereDate('created_at', Carbon::today())
+                    ->whereDoesntHave('Followup', function ($q) {
                         $q->whereNotNull('lead_id');
                     });
-                    break;
-                case 'convert_leads':
-                    $query->where('status', 1);
-                    break;
-                case 'today_fresh_lead':
-                    $query->whereDate('created_at', Carbon::today())
-                        ->whereDoesntHave('Followup', function ($q) {
-                            $q->whereNotNull('lead_id');
-                        });
-                    break;
-                case 'today_invoice':
-                    $query->whereDate('created_at', Carbon::today());
-                    break;
-                case 'all_followup':
-                    // dd(2);
-                    $query->whereHas('Followup', function ($q) {
-                        $q->whereNotIn('reason', ['Work with other company', 'Wrong Information', 'Not interested']);
+                break;
+            case 'today_invoice':
+                $query->whereDate('created_at', Carbon::today());
+                break;
+            case 'all_followup':
+                $query->whereHas('Followup', function ($q) {
+                    $q->whereNotIn('reason', ['Work with other company', 'Wrong Information', 'Not interested']);
+                });
+                break;
+            case 'today_created_followup':
+                $query->whereHas('Followup', function ($q) {
+                    $q->where(function ($sub) {
+                        $sub->WhereDate('created_at', now()->toDateString());
                     });
-                    break;
-
-                case 'today_created_followup':
-                    // dd(3);
-                    $query->whereHas('Followup', function ($q) {
-                        $q->where(function ($sub) {
-                            $sub->WhereDate('created_at', now()->toDateString());
-                        });
+                });
+                break;
+            case 'today_complated_followup':
+                $query->whereHas('Followup', function ($q) {
+                    $q->where(function ($sub) {
+                        $sub->whereDate('created_at', now()->toDateString())
+                            ->where('is_completed', 1);
                     });
-                    break;
-                case 'today_complated_followup':
-                    // dd(3);
-                    $query->whereHas('Followup', function ($q) {
-                        $q->where(function ($sub) {
-                            $sub->whereDate('created_at', now()->toDateString())
-                                ->where('is_completed', 1);
-                        });
+                });
+                break;
+            case 'today_pending_followup':
+                $query->whereHas('Followup', function ($q) {
+                    $q->where(function ($sub) {
+                        $sub->whereDate('next_date', now()->toDateString())
+                            ->whereNUll('is_completed');
                     });
-                    break;
-                case 'today_pending_followup':
-                    $query->whereHas('Followup', function ($q) {
-                        $q->where(function ($sub) {
-                            $sub->whereDate('next_date', now()->toDateString())
-                                ->whereNUll('is_completed');
-                        });
+                });
+                break;
+            case 'today_followup':
+                $query->whereHas('Followup', function ($q) {
+                    $q->where(function ($sub) {
+                        $sub->WhereDate('next_date', now()->toDateString());
                     });
-                    break;
-                case 'today_followup':
-                    // dd(3);
-                    $query->whereHas('Followup', function ($q) {
-                        $q->where(function ($sub) {
-                            $sub->WhereDate('next_date', now()->toDateString());
-                        });
+                });
+                break;
+            case 'yesterday_followup':
+                $query->whereHas('Followup', function ($q) {
+                    $q->where(function ($sub) {
+                        $sub->whereDate('created_at', now()->subDay()->toDateString())
+                            ->orWhereDate('next_date', now()->subDay()->toDateString());
                     });
-                    break;
-
-                case 'yesterday_followup':
-                    // dd(1);
-                    $query->whereHas('Followup', function ($q) {
-                        $q->where(function ($sub) {
-                            $sub->whereDate('created_at', now()->subDay()->toDateString())
-                                ->orWhereDate('next_date', now()->subDay()->toDateString());
-                        });
+                });
+                break;
+            case 'last_7_days_followup':
+                $query->whereHas('Followup', function ($q) {
+                    $q->where(function ($sub) {
+                        $sub->whereBetween('next_date', [now()->subDays(6)->startOfDay(), now()->endOfDay()])
+                            ->orWhereBetween('created_at', [now()->subDays(6)->startOfDay(), now()->endOfDay()]);
                     });
-                    break;
-
-                case 'last_7_days_followup':
-                    $query->whereHas('Followup', function ($q) {
-                        $q->where(function ($sub) {
-                            $sub->whereBetween('next_date', [now()->subDays(6)->startOfDay(), now()->endOfDay()])
-                                ->orWhereBetween('created_at', [now()->subDays(6)->startOfDay(), now()->endOfDay()]);
-                        });
+                });
+                break;
+            case 'this_month_followup':
+                $query->whereHas('Followup', function ($q) {
+                    $q->where(function ($sub) {
+                        $sub->whereBetween('next_date', [now()->startOfMonth(), now()->endOfMonth()])
+                            ->orWhereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()]);
                     });
-                    break;
-
-                case 'this_month_followup':
-                    $query->whereHas('Followup', function ($q) {
-                        $q->where(function ($sub) {
-                            $sub->whereBetween('next_date', [now()->startOfMonth(), now()->endOfMonth()])
-                                ->orWhereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()]);
-                        });
-                    });
-                    break;
-                case 'followup_pending':
-                    $query->whereHas('Followup', function ($q) {
-                        $q->where('is_completed', '!=', 1);
-                    });
-                    break;
-                case 'followup_completed':
-                    $query->whereHas('Followup', function ($q) {
-                        $q->where('is_completed', 1);
-                    });
-                    break;
-                case 'followup_other':
-                    $query->whereHas('Followup', function ($q) {
-                        $q->where('reason', "Other");
-                    });
-                    break;
-                case 'followup_interested':
-                    $query->whereHas('lastFollowup', function ($q) {
-                        $q->where('reason', "Interested");
-                    });
-                    break;
-                case 'today_converted':
-                    $query->whereHas('Followup', function ($q) {
-                        $q->whereDate('next_date', now()->toDateString());
-                    });
-                    break;
-                case 'today_reminder':
-                    $query->whereHas('Payment', function ($q) {
-                        $q->whereDate('next_billing_date', now()->toDateString());
-                    });
-                    break;
-                case 'today_billing':
-                    $query->whereDate('billing_date', Carbon::today());
-                    break;
-                case 'cold_clients':
-                    $query->whereHas('Followup', function ($q) {
-                        $q->where('reason', 'call back later')
-                            ->orWhere('reason', 'Not pickup');
-                    });
-                    break;
-                case 'today_cold_clients':
-                    $query->whereHas('Followup', function ($q) {
-                        $q->where('reason', 'call back later')
-                            ->orWhere('reason', 'Not pickup')
-                            ->whereDate('next_date', Carbon::today());
-                    });
-                    break;
-                case 'rejects':
-                    $query->whereHas('Followup', function ($q) {
-                        $q->where('reason', 'Wrong Information')
-                            ->orwhere('reason', 'Work with other company')
-                            ->orwhere('reason', 'Not interested');
-                    });
-                    break;
-                case 'today_reject':
-                    $query->whereHas('Followup', function ($q) {
-                        $q->where('reason', 'Wrong Information')
-                            ->orwhere('reason', 'Work with other company')
-                            ->orwhere('reason', 'Not interested')
-                            ->whereDate('created_at', Carbon::today());
-                    });
-                    break;
-                case 'reject_wrong_info':
-                    $query->whereHas('Followup', function ($q) {
-                        $q->where('reason', 'Wrong Information');
-                    });
-                    break;
-                case 'reject_other_company':
-                    $query->whereHas('Followup', function ($q) {
-                        $q->where('reason', 'Work with other company');
-                    });
-                    break;
-                case 'reject_not_intersted':
-                    $query->whereHas('Followup', function ($q) {
-                        $q->where('reason', 'Not interested');
-                    });
-                    break;
-                case 'followup_payment_today':
-                    $query->whereHas('Followup', function ($q) {
-                        $q->where('reason', 'Payment Tomorrow');
-                    });
-                    break;
-                case 'delay':
-                    $query->whereHas('Followup', function ($q) {
-                        $q->where('delay', 1)
+                });
+                break;
+            case 'followup_pending':
+                $query->whereHas('Followup', function ($q) {
+                    $q->where('is_completed', '!=', 1);
+                });
+                break;
+            case 'followup_completed':
+                $query->whereHas('Followup', function ($q) {
+                    $q->where('is_completed', 1);
+                });
+                break;
+            case 'followup_other':
+                $query->whereHas('Followup', function ($q) {
+                    $q->where('reason', "Other");
+                });
+                break;
+            case 'followup_interested':
+                $query->whereHas('lastFollowup', function ($q) {
+                    $q->where('reason', "Interested");
+                });
+                break;
+            case 'today_converted':
+                $query->whereHas('Followup', function ($q) {
+                    $q->whereDate('next_date', now()->toDateString());
+                });
+                break;
+            case 'today_reminder':
+                $query->whereHas('Payment', function ($q) {
+                    $q->whereDate('next_billing_date', now()->toDateString());
+                });
+                break;
+            case 'today_billing':
+                $query->whereDate('billing_date', Carbon::today());
+                break;
+            case 'cold_clients':
+                $query->whereHas('Followup', function ($q) {
+                    $q->where('reason', 'call back later')
+                        ->orWhere('reason', 'Not pickup');
+                });
+                break;
+            case 'today_cold_clients':
+                $query->whereHas('Followup', function ($q) {
+                    $q->where('reason', 'call back later')
+                        ->orWhere('reason', 'Not pickup')
+                        ->whereDate('next_date', Carbon::today());
+                });
+                break;
+            case 'rejects':
+                $query->whereHas('Followup', function ($q) {
+                    $q->where('reason', 'Wrong Information')
+                        ->orwhere('reason', 'Work with other company')
+                        ->orwhere('reason', 'Not interested');
+                });
+                break;
+            case 'today_reject':
+                $query->whereHas('Followup', function ($q) {
+                    $q->where('reason', 'Wrong Information')
+                        ->orwhere('reason', 'Work with other company')
+                        ->orwhere('reason', 'Not interested')
+                        ->whereDate('created_at', Carbon::today());
+                });
+                break;
+            case 'reject_wrong_info':
+                $query->whereHas('Followup', function ($q) {
+                    $q->where('reason', 'Wrong Information');
+                });
+                break;
+            case 'reject_other_company':
+                $query->whereHas('Followup', function ($q) {
+                    $q->where('reason', 'Work with other company');
+                });
+                break;
+            case 'reject_not_intersted':
+                $query->whereHas('Followup', function ($q) {
+                    $q->where('reason', 'Not interested');
+                });
+                break;
+            case 'followup_payment_today':
+                $query->whereHas('Followup', function ($q) {
+                    $q->where('reason', 'Payment Tomorrow');
+                });
+                break;
+            case 'delay':
+                $query->whereHas('Followup', function ($q) {
+                    $q->where('delay', 1)
+                        ->orWhere('is_completed', '!=', 1);
+                });
+                break;
+            case 'today_delay':
+                $query->whereHas('Followup', function ($q) {
+                    $q->where(function ($query) {
+                        $query->where('delay', 1)
                             ->orWhere('is_completed', '!=', 1);
-                    });
-                    break;
-                case 'today_delay':
-                    // dd(1);
-                    $query->whereHas('Followup', function ($q) {
-                        $q->where(function ($query) {
-                            $query->where('delay', 1)
-                                ->orWhere('is_completed', '!=', 1);
-                        })->where('next_date', Carbon::today());
-                    });
-                    break;
-                case 'delay_1_days':
-                    $query->whereHas('Followup', function ($q) {
-                        $q->where('delay', 1)
-                            ->orWhere('is_completed', '!=', 1);
-                    });
-                    break;
-                case 'delay_2_days':
-                    $query->whereHas('Followup', function ($q) {
-                        $q->where('delay', 1)
-                            ->orWhere('is_completed', '!=', 1);
-                    });
-                    break;
-                case 'delay_3_days':
-                    $query->whereHas('Followup', function ($q) {
-                        $q->where('delay', 1)
-                            ->orWhere('is_completed', '!=', 1);
-                    });
-                    break;
-                case 'delay_4_days':
-                    $query->whereHas('Followup', function ($q) {
-                        $q->where('delay', 1)
-                            ->orWhere('is_completed', '!=', 1);
-                    });
-                    break;
-                case 'delay_5+_days+':
-                    $query->whereHas('Followup', function ($q) {
-                        $q->where('delay', 1)
-                            ->orWhere('is_completed', '!=', 1);
-                    });
-                    break;
-                default:
-                    $query->whereHas('Followup', function ($q) {
-                        $q->whereNotIn('reason', ['Wrong Information', 'Not interested', 'Work with other company']);
-                    });
-                    break;
-            }
+                    })->where('next_date', Carbon::today());
+                });
+                break;
+            case 'delay_1_days':
+                $query->whereHas('Followup', function ($q) {
+                    $q->where('delay', 1)
+                        ->orWhere('is_completed', '!=', 1);
+                });
+                break;
+            case 'delay_2_days':
+                $query->whereHas('Followup', function ($q) {
+                    $q->where('delay', 1)
+                        ->orWhere('is_completed', '!=', 1);
+                });
+                break;
+            case 'delay_3_days':
+                $query->whereHas('Followup', function ($q) {
+                    $q->where('delay', 1)
+                        ->orWhere('is_completed', '!=', 1);
+                });
+                break;
+            case 'delay_4_days':
+                $query->whereHas('Followup', function ($q) {
+                    $q->where('delay', 1)
+                        ->orWhere('is_completed', '!=', 1);
+                });
+                break;
+            case 'delay_5+_days+':
+                $query->whereHas('Followup', function ($q) {
+                    $q->where('delay', 1)
+                        ->orWhere('is_completed', '!=', 1);
+                });
+                break;
+            default:
+                $query->whereHas('Followup', function ($q) {
+                    $q->whereNotIn('reason', ['Wrong Information', 'Not interested', 'Work with other company']);
+                });
+                break;
         }
     }
+}
 
     private function initializeLeadCounts()
     {
@@ -743,17 +749,34 @@ HTML;
         ];
     }
 
-    private function handleRoleBasedLogic($user, $query)
+   private function handleRoleBasedLogic($user, $query)
     {
         $data = [];
         if ($user && $user->hasRole(['BDE', 'Business Development Intern'])) {
             $userId = $user->id;
-            # btn filter
+            
+            // --- EXISTING COUNTS ---
             $data['total_leads'] = Lead::where(function ($q) use ($userId) {
                 $q->where('user_id', $userId)
                     ->orWhere('assigned_user_id', $userId);
             })->count();
 
+            // --- ADDED: HOT CLIENTS COUNTS (BDE) ---
+            $data['hot_client'] = Lead::where('lead_status', 1) // 1 = Hot
+                ->where(function ($q) use ($userId) {
+                    $q->where('user_id', $userId)
+                        ->orWhere('assigned_user_id', $userId);
+                })->count();
+
+            $data['today_hot_client'] = Lead::where('lead_status', 1)
+                ->whereHas('Followup', function ($q) {
+                    $q->whereDate('next_date', Carbon::today());
+                })
+                ->where(function ($q) use ($userId) {
+                    $q->where('user_id', $userId)
+                        ->orWhere('assigned_user_id', $userId);
+                })->count();
+            // ----------------------------------------
 
             $data['today_leads'] = Lead::where('created_at', '>=', Carbon::today())
                 ->where(function ($q) use ($userId) {
@@ -948,6 +971,16 @@ HTML;
                     $query->where('assigned_by', auth()->user()->id);
                 })->distinct('lead_id')->count();
         } else {
+            
+            // --- ADDED: HOT CLIENTS COUNTS (ADMIN) ---
+            $data['hot_client'] = Lead::where('lead_status', 1)->count();
+            
+            $data['today_hot_client'] = Lead::where('lead_status', 1)
+                ->whereHas('Followup', function ($q) {
+                    $q->whereDate('next_date', Carbon::today());
+                })->count();
+            // -----------------------------------------
+
             $data['today_leads'] = Lead::where('created_at', '>=', Carbon::today())->count();
             $data['month_leads'] = Lead::where('created_at', '>=', Carbon::now()->startOfMonth())->count();
             $data['year_leads'] = Lead::where('created_at', '>=', Carbon::now()->startOfYear())->count();
