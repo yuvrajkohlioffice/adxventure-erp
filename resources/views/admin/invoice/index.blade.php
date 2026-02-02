@@ -3,207 +3,143 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <link href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css" rel="stylesheet">
-    
-    @include('admin.invoice.invoice-card') 
+
+    @include('admin.invoice.invoice-card')
     @include('include.alert')
 
-    
 
-    <section class="section mt-4">
-        <div class="container-fluid">
-            <div class="card shadow-sm">
-                <div class="card-body">
-                    
-                    <div class="mb-4 d-flex flex-wrap gap-2 justify-content-center" id="quick-filters">
-                        <button type="button" class="btn btn-outline-primary active" data-filter="">
-                            All <span class="badge bg-primary ms-1" id="badge-all">0</span>
-                        </button>
-                        <button type="button" class="btn btn-outline-secondary" data-filter="today_invoice">
-                            Today Invoice <span class="badge bg-secondary ms-1" id="badge-today_invoice">0</span>
-                        </button>
-                        <button type="button" class="btn btn-outline-secondary" data-filter="today_followup">
-                            Today Followup <span class="badge bg-secondary ms-1" id="badge-today_followup">0</span>
-                        </button>
-                        <button type="button" class="btn btn-outline-secondary" data-filter="today_billing">
-                            Today Billing <span class="badge bg-secondary ms-1" id="badge-today_billing">0</span>
-                        </button>
-                        <button type="button" class="btn btn-outline-secondary" data-filter="today_reminder">
-                            Today Reminder <span class="badge bg-secondary ms-1" id="badge-today_reminder">0</span>
-                        </button>
-                    </div>
+    <section class="section">
+        <div class="row">
+            <div class="col-lg-12">
+                <div class="card">
+                    <div class="card-body">
+                        <div id="data-container">
+                            <!-- Filter Buttons -->
+                            <div id="filter-buttons">
+                                <div class="col-12 m-4 ">
+                                    <form action="" id="filter-button">
+                                        <div class="d-flex">
+                                            <button type="button" class="btn btn-outline-secondary mx-2"
+                                                data-filter="all">
+                                                All <span class="badge bg-light text-dark">{{ $totalInvoice }}</span>
+                                            </button>
+                                            <button type="button" class="btn btn-outline-secondary mx-2"
+                                                data-filter="today_invoice">
+                                                Today Invoice <span
+                                                    class="badge bg-light text-dark">{{ $todayInvoice }}</span>
+                                            </button>
+                                            <button type="button" class="btn btn-outline-secondary mx-2"
+                                                data-filter="today_followup">
+                                                Today Followup <span
+                                                    class="badge bg-light text-dark">{{ $todayFollowup }}</span>
+                                            </button>
+                                            <button type="button" class="btn btn-outline-secondary mx-2"
+                                                data-filter="today_billing">
+                                                Today Billing <span
+                                                    class="badge bg-light text-dark">{{ $todayBilling }}</span>
+                                            </button>
+                                            <button type="button" class="btn btn-outline-secondary mx-2"
+                                                data-filter="today_reminder">
+                                                Today Reminder <span
+                                                    class="badge bg-light text-dark">{{ $todayReminderCount }}</span>
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                            <!-- Filter Form -->
+                            <form method="GET" action="{{ url('/invoice') }}">
+                                <div class="row ">
+                                    <div class="col">
+                                        <input type="text" class="form-control" name="name"
+                                            placeholder="Search By Client Name, Email, Phone..."
+                                            value="{{ request('name') }}">
+                                    </div>
+                                    <div class="col">
+                                        <select class="form-select" name="invoice_day" id="invoice_day">
+                                            <option selected disabled>Search By Date..</option>
+                                            <option value=" ">None</option>
+                                            <option value="Today">Today</option>
+                                            <option value="Yesterday">Yesterday</option>
+                                            <option value="This Week">This Week</option>
+                                            <option value="year">This Year</option>
+                                            <option value="custom">Custom Date</option>
+                                        </select>
+                                    </div>
+                                    <!-- Date inputs (hidden by default) -->
+                                    <div class="col" id="from_date_container" style="display: none;">
+                                        <input type="date" name="from_date" id="from_date" class="form-control">
+                                    </div>
+                                    <div class="col" id="to_date_container" style="display: none;">
+                                        <input type="date" name="to_date" id="to_date" class="form-control">
+                                    </div>
 
-                    <form id="search-form" class="mb-4 p-3 bg-light rounded">
-                        <div class="row g-3">
-                            <div class="col-md-3">
-                                <input type="text" class="form-control" name="name" placeholder="Search Client...">
-                            </div>
-                            <div class="col-md-2">
-                                <select class="form-select" name="invoice_day">
-                                    <option value="">All Dates</option>
-                                    <option value="Today">Today</option>
-                                    <option value="Yesterday">Yesterday</option>
-                                    <option value="This Week">This Week</option>
-                                    <option value="month">This Month</option>
-                                    <option value="custom">Custom Range</option>
-                                </select>
-                            </div>
-                            <div class="col-md-2 date-range-group" style="display: none;">
-                                <input type="date" name="from_date" class="form-control">
-                            </div>
-                            <div class="col-md-2 date-range-group" style="display: none;">
-                                <input type="date" name="to_date" class="form-control">
+                                    <div class="col">
+                                        <select class="form-select" name="invoice_status">
+                                            <option selected disabled>Search By Type..</option>
+                                            <option value="">None</option>
+                                            <option value="fresh"
+                                                {{ request('invoice_status') == 'fresh' ? 'selected' : '' }}>Fresh Sale
+                                            </option>
+                                            <option value="upsale"
+                                                {{ request('invoice_status') == 'upsale' ? 'selected' : '' }}>Up Sale
+                                            </option>
+                                            <option value="partial-paid"
+                                                {{ request('invoice_status') == 'partial-paid' ? 'selected' : '' }}>
+                                                Partial Paid</option>
+                                            <option value="Paid"
+                                                {{ request('invoice_status') == 'Paid' ? 'selected' : '' }}>Paid
+                                            </option>
+                                            <option value="un-paid"
+                                                {{ request('invoice_status') == 'un-paid' ? 'selected' : '' }}>Unpaid
+                                            </option>
+                                        </select>
+                                    </div>
+                                    <div class="col">
+                                        <select class="form-select" name="reminder">
+                                            <option selected disabled>Filter By Reminder..</option>
+                                            <option value=" ">None</option>
+                                            <option value="today">Today</option>
+                                            <option value="before">After 3 Days</option>
+                                            <option value="after">Before 3 Days</option>
+                                        </select>
+                                    </div>
+                                    <div class="col">
+                                        <select class="form-select" name="bill">
+                                            <option selected disabled>Filter By Bill..</option>
+                                            <option value=" ">All</option>
+                                            <option value="gst">Gst Bill</option>
+                                            <option value="no_gst">Non Gst Bill</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="col">
+                                        <button type="submit" class="btn btn-success btn-md">Filter</button>
+                                        &nbsp; &nbsp;
+                                        <a href="{{ url('/invoice') }}" class="btn btn-danger">Refresh</a>
+                                    </div>
+                                </div>
+                            </form>
+
+
+                            <br>
+
+                            <!-- Data Section -->
+                            <div id="data-section">
+                                @include('admin.invoice.partials.data', ['data' => $data])
                             </div>
 
-                            <div class="col-md-2">
-                                <select class="form-select" name="invoice_status">
-                                    <option value="">All Status</option>
-                                    <option value="fresh">Fresh Sale</option>
-                                    <option value="upsale">Up Sale</option>
-                                    <option value="partial-paid">Partial Paid</option>
-                                    <option value="Paid">Paid</option>
-                                    <option value="un-paid">Unpaid</option>
-                                </select>
-                            </div>
-                            <div class="col-md-auto">
-                                <button type="submit" class="btn btn-primary">Filter</button>
-                                <button type="button" id="reset-btn" class="btn btn-outline-danger">Reset</button>
+                            <!-- Pagination Section -->
+                            <div class="pagination-links">
+                                @include('admin.invoice.partials.pagination', ['data' => $data])
                             </div>
                         </div>
-                    </form>
-
-                    <div class="row mb-4 g-3 text-center">
-                        <div class="col">
-                            <div class="p-2 border rounded bg-light">
-                                <small class="text-muted">Total Count</small>
-                                <h5 class="fw-bold mb-0" id="stat-count">0</h5>
-                            </div>
-                        </div>
-                        <div class="col">
-                            <div class="p-2 border rounded bg-light">
-                                <small class="text-muted">Total Amount</small>
-                                <h5 class="fw-bold mb-0 text-primary" id="stat-amount">0</h5>
-                            </div>
-                        </div>
-                        <div class="col">
-                            <div class="p-2 border rounded bg-light">
-                                <small class="text-muted">Received</small>
-                                <h5 class="fw-bold mb-0 text-success" id="stat-received">0</h5>
-                            </div>
-                        </div>
-                        <div class="col">
-                            <div class="p-2 border rounded bg-light">
-                                <small class="text-muted">Balance Due</small>
-                                <h5 class="fw-bold mb-0 text-danger" id="stat-balance">0</h5>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="table-responsive">
-                        <table class="table table-hover table-bordered w-100" id="invoices-table">
-                            <thead class="bg-light text-secondary">
-                                <tr>
-                                    <th>#</th>
-                                    <th>Client Details</th>
-                                    <th>Amount Details</th>
-                                    <th>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody></tbody>
-                        </table>
                     </div>
                 </div>
             </div>
         </div>
     </section>
 
-    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
-    <script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
-    
-    <script>
-        $(document).ready(function() {
-            // 1. Initialize DataTable
-            var table = $('#invoices-table').DataTable({
-                processing: true,
-                serverSide: true,
-                ajax: {
-                    url: "{{ route('invoice.index') }}",
-                    data: function (d) {
-                        // Append Form Data to Request
-                        var formData = $('#search-form').serializeArray();
-                        $.each(formData, function(i, field){
-                            d[field.name] = field.value;
-                        });
-                        // Append Quick Filter
-                        d.quick_filter = $('#quick-filters .active').data('filter');
-                    }
-                },
-                columns: [
-                    {data: 'DT_RowIndex', name: 'DT_RowIndex', orderable: false, searchable: false},
-                    {data: 'client_details', name: 'client.name'},
-                    {data: 'amount_details', name: 'total_amount'},
-                    {data: 'action', name: 'action', orderable: false, searchable: false},
-                ],
-                drawCallback: function() {
-                    loadStats(); // Reload top stats whenever table updates
-                }
-            });
-
-            // 2. Load Stats Function
-            function loadStats() {
-                var params = $('#search-form').serializeArray();
-                params.push({name: 'get_stats', value: 1});
-                params.push({name: 'quick_filter', value: $('#quick-filters .active').data('filter')});
-
-                $.ajax({
-                    url: "{{ route('invoice.index') }}",
-                    data: params,
-                    success: function(res) {
-                        $('#stat-count').text(res.total_invoice);
-                        $('#stat-amount').text(res.total_amount);
-                        $('#stat-received').text(res.total_received);
-                        $('#stat-balance').text(res.total_balance);
-
-                        // Update Quick Filter Badges
-                        $('#badge-all').text(res.all);
-                        $('#badge-today_invoice').text(res.today_invoice);
-                        $('#badge-today_followup').text(res.today_followup);
-                        $('#badge-today_billing').text(res.today_billing);
-                        $('#badge-today_reminder').text(res.today_reminder);
-                    }
-                });
-            }
-
-            // 3. Event Listeners
-            $('#search-form').on('submit', function(e) {
-                e.preventDefault();
-                table.draw();
-            });
-
-            $('#reset-btn').on('click', function() {
-                $('#search-form')[0].reset();
-                $('#quick-filters .btn').removeClass('active btn-primary').addClass('btn-outline-secondary');
-                $('#quick-filters .btn:first').addClass('active btn-primary').removeClass('btn-outline-secondary');
-                $('.date-range-group').hide();
-                table.draw();
-            });
-
-            // Quick Filter Buttons
-            $('#quick-filters .btn').on('click', function() {
-                $('#quick-filters .btn').removeClass('active btn-primary').addClass('btn-outline-secondary');
-                $(this).removeClass('btn-outline-secondary').addClass('active btn-primary');
-                table.draw();
-            });
-
-            // Toggle Custom Date Inputs
-            $('select[name="invoice_day"]').on('change', function() {
-                if($(this).val() == 'custom') {
-                    $('.date-range-group').show();
-                } else {
-                    $('.date-range-group').hide();
-                }
-            });
-        });
-    </script>
 
     <!-- Followup Modal -->
     @include('admin.invoice.partials.followup')
@@ -296,9 +232,9 @@
             document.querySelectorAll('.view-receipt').forEach(button => {
                 button.addEventListener('click', function() {
                     const dataId = button.getAttribute(
-                    'data-id'); // Get the data ID from the button
+                        'data-id'); // Get the data ID from the button
                     const paymentRecords = paymentsData[
-                    dataId]; // Retrieve payment records using data ID
+                        dataId]; // Retrieve payment records using data ID
 
                     let tableRows = '';
 
