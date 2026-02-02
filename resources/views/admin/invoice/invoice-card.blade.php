@@ -76,7 +76,7 @@
     .cursor-pointer { cursor: pointer; }
 </style>
 
-<section class="section dashboard container-fluid p-4 dashboard-bg">
+<section class="section dashboard container-fluid p-4 dashboard-bg pt-0 mt-0">
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-center mb-4">
         <div class="pagetitle mb-3 mb-md-0">
             <h1 class="h3 fw-bold text-dark">All Invoices</h1>
@@ -131,7 +131,7 @@
         </div>
 
         <div class="col-12 col-md-6 col-xl-3">
-            <div class="card h-100 border-start border-4 border-success">
+            <div class="card h-100   ">
                 <div class="card-body p-3">
                     <div class="d-flex align-items-center justify-content-between mb-2">
                         <h6 class="text-muted text-uppercase mb-0 small fw-bold">FRESH SALES</h6>
@@ -154,7 +154,7 @@
         </div>
 
         <div class="col-12 col-md-6 col-xl-3">
-            <div class="card h-100 border-start border-4 border-info">
+            <div class="card h-100  ">
                 <div class="card-body p-3">
                     <div class="d-flex align-items-center justify-content-between mb-2">
                         <h6 class="text-muted text-uppercase mb-0 small fw-bold">UPSALES</h6>
@@ -643,30 +643,3 @@
         DashboardManager.init();
     });
 </script>
-
-
-{{-- 
-    COMPONENT NOTE: 
-    For the @include('components.stat-card') to work, create a file at 
-    resources/views/components/stat-card.blade.php with the following content:
---}}
-{{--
-<div class="card info-card border-0 shadow-sm h-100">
-    <div class="card-body p-3">
-        <div class="d-flex align-items-center justify-content-between mb-2">
-            <h6 class="card-title text-muted text-uppercase mb-0 small fw-bold">{{ $title }}</h6>
-            <div class="icon-box bg-light text-{{ $color }}"><i class="bi {{ $icon }}"></i></div>
-        </div>
-        <div class="d-flex justify-content-between align-items-end">
-            <div>
-                <h4 class="fw-bold mb-0" id="{{ $idCount }}">{{ $count }}</h4>
-                <small class="text-muted">Count</small>
-            </div>
-            <div class="text-end">
-                <h5 class="fw-bold mb-0 text-dark" id="{{ $idAmount }}">{{ $amount }}</h5>
-                <small class="text-muted">Amount</small>
-            </div>
-        </div>
-    </div>
-</div>
---}}
