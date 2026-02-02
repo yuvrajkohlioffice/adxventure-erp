@@ -308,8 +308,8 @@
                             <!-- Pagination Section -->
                             <div class="pagination-links">
                                 <div class="row pagination-links">
-    <div class="col-8"></div>
-    <div class="col-4 text-end">
+    <div class="col-6"></div>
+    <div class="col-6 text-end">
         {{ $data->appends(request()->query())->links() }}
     </div>
 </div>
