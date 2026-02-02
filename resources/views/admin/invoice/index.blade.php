@@ -1,410 +1,209 @@
 <x-app-layout>
-    @section('title', 'Invoice')
+    @section('title', 'Invoice Management')
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    @include('admin.invoice.invoice-card')
-    <style>
-        .dashboard .info-card h6 {
-            font-size: 20px !important;
-            color: #012970;
-            font-weight: 600 !important;
-            margin: 0;
-            padding: 0;
-        }
-    </style>
+
+    <link href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+    
+    @include('admin.invoice.invoice-card') 
     @include('include.alert')
-    <section class="section mt-5">
-        <div class="row">
-            <div class="col-lg-12">
-                <div class="card">
-                    <div class="card-body">
-                        <div id="data-container">
-                            <!-- Filter Buttons -->
-                            <div id="filter-buttons">
-                                <div class="col-12 m-4 ">
-                                    <form action="" id="filter-button">
-                                        <div class="d-flex">
-                                            <button type="button" class="btn btn-outline-secondary mx-2"
-                                                data-filter="all">
-                                                All <span class="badge bg-light text-dark">{{ $totalInvoice }}</span>
-                                            </button>
-                                            <button type="button" class="btn btn-outline-secondary mx-2"
-                                                data-filter="today_invoice">
-                                                Today Invoice <span
-                                                    class="badge bg-light text-dark">{{ $todayInvoice }}</span>
-                                            </button>
-                                            <button type="button" class="btn btn-outline-secondary mx-2"
-                                                data-filter="today_followup">
-                                                Today Followup <span
-                                                    class="badge bg-light text-dark">{{ $todayFollowup }}</span>
-                                            </button>
-                                            <button type="button" class="btn btn-outline-secondary mx-2"
-                                                data-filter="today_billing">
-                                                Today Billing <span
-                                                    class="badge bg-light text-dark">{{ $todayBilling }}</span>
-                                            </button>
-                                            <button type="button" class="btn btn-outline-secondary mx-2"
-                                                data-filter="today_reminder">
-                                                Today Reminder <span
-                                                    class="badge bg-light text-dark">{{ $todayReminderCount }}</span>
-                                            </button>
-                                        </div>
-                                    </form>
-                                </div>
+
+    
+
+    <section class="section mt-4">
+        <div class="container-fluid">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    
+                    <div class="mb-4 d-flex flex-wrap gap-2 justify-content-center" id="quick-filters">
+                        <button type="button" class="btn btn-outline-primary active" data-filter="">
+                            All <span class="badge bg-primary ms-1" id="badge-all">0</span>
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" data-filter="today_invoice">
+                            Today Invoice <span class="badge bg-secondary ms-1" id="badge-today_invoice">0</span>
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" data-filter="today_followup">
+                            Today Followup <span class="badge bg-secondary ms-1" id="badge-today_followup">0</span>
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" data-filter="today_billing">
+                            Today Billing <span class="badge bg-secondary ms-1" id="badge-today_billing">0</span>
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" data-filter="today_reminder">
+                            Today Reminder <span class="badge bg-secondary ms-1" id="badge-today_reminder">0</span>
+                        </button>
+                    </div>
+
+                    <form id="search-form" class="mb-4 p-3 bg-light rounded">
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <input type="text" class="form-control" name="name" placeholder="Search Client...">
                             </div>
-                            <!-- Filter Form -->
-                            <form method="GET" action="{{ url('/invoice') }}">
-                                <div class="row ">
-                                    <div class="col">
-                                        <input type="text" class="form-control" name="name"
-                                            placeholder="Search By Client Name, Email, Phone..."
-                                            value="{{ request('name') }}">
-                                    </div>
-                                    <div class="col">
-                                        <select class="form-select" name="invoice_day" id="invoice_day">
-                                            <option selected disabled>Search By Date..</option>
-                                            <option value=" ">None</option>
-                                            <option value="Today">Today</option>
-                                            <option value="Yesterday">Yesterday</option>
-                                            <option value="This Week">This Week</option>
-                                            <option value="year">This Year</option>
-                                            <option value="custom">Custom Date</option>
-                                        </select>
-                                    </div>
-                                    <!-- Date inputs (hidden by default) -->
-                                    <div class="col" id="from_date_container" style="display: none;">
-                                        <input type="date" name="from_date" id="from_date" class="form-control">
-                                    </div>
-                                    <div class="col" id="to_date_container" style="display: none;">
-                                        <input type="date" name="to_date" id="to_date" class="form-control">
-                                    </div>
-
-                                    <div class="col">
-                                        <select class="form-select" name="invoice_status">
-                                            <option selected disabled>Search By Type..</option>
-                                            <option value="">None</option>
-                                            <option value="fresh"
-                                                {{ request('invoice_status') == 'fresh' ? 'selected' : '' }}>Fresh Sale
-                                            </option>
-                                            <option value="upsale"
-                                                {{ request('invoice_status') == 'upsale' ? 'selected' : '' }}>Up Sale
-                                            </option>
-                                            <option value="partial-paid"
-                                                {{ request('invoice_status') == 'partial-paid' ? 'selected' : '' }}>
-                                                Partial Paid</option>
-                                            <option value="Paid"
-                                                {{ request('invoice_status') == 'Paid' ? 'selected' : '' }}>Paid
-                                            </option>
-                                            <option value="un-paid"
-                                                {{ request('invoice_status') == 'un-paid' ? 'selected' : '' }}>Unpaid
-                                            </option>
-                                        </select>
-                                    </div>
-                                    <div class="col">
-                                        <select class="form-select" name="reminder">
-                                            <option selected disabled>Filter By Reminder..</option>
-                                            <option value=" ">None</option>
-                                            <option value="today">Today</option>
-                                            <option value="before">After 3 Days</option>
-                                            <option value="after">Before 3 Days</option>
-                                        </select>
-                                    </div>
-                                    <div class="col">
-                                        <select class="form-select" name="bill">
-                                            <option selected disabled>Filter By Bill..</option>
-                                            <option value=" ">All</option>
-                                            <option value="gst">Gst Bill</option>
-                                            <option value="no_gst">Non Gst Bill</option>
-                                        </select>
-                                    </div>
-
-                                    <div class="col">
-                                        <button type="submit" class="btn btn-success btn-md">Filter</button>
-                                        &nbsp; &nbsp;
-                                        <a href="{{ url('/invoice') }}" class="btn btn-danger">Refresh</a>
-                                    </div>
-                                </div>
-                            </form>
-
-
-                            <br>
-
-                            <!-- Data Section -->
-                            <div id="data-section">
-                                <!-- Data Table or List Section -->
-                                <div id="data-content">
-                                    <!-- Invoice summery   -->
-                                    <div class="col-12 my-2">
-                                        <div class="row">
-                                            <div class="col" style="font-size: 20px;"> Total Invoice:
-                                                <strong>{{ $totalInvoice }}</strong></div>
-                                            <div class="col" style="font-size: 20px;"> Total Amount:
-                                                <strong>{{ $totalInvoicePrice }}</strong> </div>
-                                            <!-- <div class="col"  style="font-size: 20px;"> Total GST:  <strong>{{ $totalGstAmount }}</strong></div> -->
-                                            <div class="col" style="font-size: 20px;"> Total pay Amount:
-                                                <strong>{{ $totalInvoicePay }} </strong></div>
-                                            <div class="col" style="font-size: 20px;"> Total Balance:
-                                                <strong>{{ $totalInvoiceBalance }}</strong></div>
-                                        </div>
-                                    </div>
-                                    <!-- table data  -->
-                                    <table class="table table-striped">
-                                        <thead>
-                                            <tr class="bg-success text-white table-bordered ">
-                                                <th scope="col">Client Details</th>
-                                                <th scope="col">Amount Details</th>
-                                                <th scope="col">Followup</th>
-                                                <th scope="col">Invoice</th>
-                                                <th scope="col">Mark as Paid</th>
-                                                <th>Action</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            @if (isset($data) && $data->count() >= 1)
-                                                @php $i=1 @endphp
-                                                @foreach ($data as $key => $d)
-                                                    @php
-                                                        $projects = collect(); // Initialize as an empty collection
-                                                        if (optional($d->client)->id) {
-                                                            $projects = DB::table('projects')
-                                                                ->where('client_id', $d->client->id)
-                                                                ->get();
-                                                        }
-                                                    @endphp
-                                                    <tr class="">
-                                                        <td>
-                                                            <strong><span
-                                                                    style="font-size:19px;">{{ $data->firstItem() + $key }}.
-                                                                    {{ optional($d->lead)->name ?? $d->client->name }}
-                                                                </span>
-                                                                @if ($d->lead_id)
-                                                                    <span class="badge bg-success">Fresh Sale</span>
-                                                                @else
-                                                                    <span class="badge bg-primary">Up Sale</span>
-                                                                @endif
-                                                            </strong><br>
-                                                            @if (isset($d->lead->email) || isset($d->client->email))
-                                                                <small>{{ optional($d->lead)->email ?? optional($d->client)->email }}</small><br>
-                                                            @endif
-                                                            <span
-                                                                style="font-size:18px;">{{ optional($d->lead)->phone ?? $d->client->phone_no }}</span><br>
-                                                            Billing Date:
-                                                            <strong>{{ \Carbon\Carbon::parse($d->billing_date)->format('d-m-Y') }}</strong><br>
-                                                            <b>Service:</b>
-                                                            @if ($d->service)
-                                                                {{ $d->service->work_name }}
-                                                            @else
-                                                                @foreach ($d->services as $service)
-                                                                    {{ $service->work_name }}<br>
-                                                                @endforeach
-                                                            @endif
-                                                        </td>
-
-                                                        <td>
-                                                            @php
-                                                                $latestPayment = $d
-                                                                    ->payment()
-                                                                    ->latest('created_at')
-                                                                    ->first();
-                                                                $nextPyament = $d
-                                                                    ->payment()
-                                                                    ->latest('next_billing_date')
-                                                                    ->first();
-                                                                $latestPaymentDate = $latestPayment
-                                                                    ? \Carbon\Carbon::parse($latestPayment->created_at)
-                                                                    : null;
-                                                                $dayDifference = $latestPaymentDate
-                                                                    ? $latestPaymentDate->diffInDays(
-                                                                        \Carbon\Carbon::today(),
-                                                                    )
-                                                                    : 'N/A';
-                                                            @endphp
-                                                            <span style="font-size: 20px;">Total Amount :
-                                                                <b>{{ $d->currency ?? 'N/A' }}
-                                                                    {{ $d->total_amount }}</b></span>
-                                                            @if ($d->gst == 0 && isset($d->gst))
-                                                                <span class="badge bg-danger mb-2">Without GST
-                                                                    Bill</span>
-                                                            @else
-                                                                <span class="badge bg-success mb-2">GST Bill</span>
-                                                            @endif
-                                                            <br>
-                                                            @if ($d->pay_amount)
-                                                                <small style="font-size: 18px;">Pay Amount: <b>
-                                                                        {{ $d->currency ?? 'N/A' }}
-                                                                        {{ $d->pay_amount }}</b>
-                                                                    @if ($dayDifference >= 1)
-                                                                        {{ $dayDifference }} days ago
-                                                                    @endif
-                                                                </small><br>
-                                                                {{-- Payment Date: <strong>{{ $latestPayment ? \Carbon\Carbon::parse($latestPayment->created_at)->format('d-m-Y') : 'N/A' }}</strong> --}}
-                                                            @endif
-                                                            <small style="font-size: 18px;">Balance:
-                                                                <b>{{ $d->currency ?? 'N/A' }}
-                                                                    {{ $d->balance }}</b></small><br>
-                                                            @if ($d->status != '2')
-                                                                Next Payment Date:
-                                                                <strong>{{ $nextPyament ? \Carbon\Carbon::parse($nextPyament->next_billing_date)->format('d-m-Y') : 'N/A' }}</strong>
-                                                                <br>
-                                                            @endif
-                                                            Deposit Date:
-                                                            <strong>{{ $latestPayment && $latestPayment->desopite_date ? \Carbon\Carbon::parse($latestPayment->desopite_date)->format('d-m-Y') : 'N/A' }}</strong><br>
-                                                            @if (isset($d->payment->sortByDesc('created_at')->first()->delay_days) &&
-                                                                    $d->payment->sortByDesc('created_at')->first()->delay_days >= 1)
-                                                                <span class="badge bg-danger">
-                                                                    {{ $d->payment->sortByDesc('created_at')->first()->delay_days ?? 'No' }}
-                                                                    Days Delay
-                                                                </span>
-                                                            @endif
-                                                            @if ($d->status == '2')
-                                                                <strong class="text-success">Paid<br>
-                                                                    @if ($d->payment->isNotEmpty())
-                                                                        {{ \Carbon\Carbon::parse($d->payment->last()->created_at ?? 'N/A')->format('d-m-Y / H:i:s') }}
-                                                                    @else
-                                                                        Unpaid
-                                                                    @endif
-                                                                    <br>
-                                                                    @if ($latestPayment = $d->payment->sortByDesc('id')->first())
-                                                                        @php
-                                                                            $delayInDays = \Carbon\Carbon::parse(
-                                                                                $latestPayment->created_at,
-                                                                            )
-                                                                                ->startOfDay()
-                                                                                ->diffInDays(
-                                                                                    \Carbon\Carbon::parse(
-                                                                                        $latestPayment->desopite_date,
-                                                                                    )->startOfDay(),
-                                                                                );
-                                                                        @endphp
-                                                                        @if ($delayInDays == 0)
-                                                                        @else
-                                                                            <strong class="text-danger"
-                                                                                style="cursor:pointer"
-                                                                                data-bs-toggle="modal"
-                                                                                data-bs-target="#delaypaidreson{{ $d->payment->last()->id }}">
-                                                                                Delay: {{ $delayInDays }} Days
-                                                                            </strong>
-                                                                        @endif
-                                                                    @else
-                                                                    @endif
-                                                                </strong>
-                                                            @elseif($d->status == '1')
-                                                                <strong
-                                                                    class="badge bg-warning text-dark">Partial-Paid</strong><br>
-                                                            @else
-                                                                <strong class="badge bg-danger">Unpaid</strong><br>
-                                                            @endif
-
-                                                        </td>
-                                                        <td>
-                                                            <a class="btn btn-sm btn-primary"
-                                                                onclick="Followup({{ $d->id }},'{{ $d->client->name ?? $d->lead->name }}')">Followup
-                                                                @if ($d->followup->count() >= 1)
-                                                                    {{ $d->followup->count() }}
-                                                                @endif
-                                                            </a>
-                                                            <button class="btn btn-success"
-                                                                onclick="Whatsapp({{ $d->id }})"><i
-                                                                    class="bi bi-whatsapp"></i></button><br>
-                                                            <button class="btn btn-outline-info mt-2 text-dark"
-                                                                onclick="SendPaymentLink({{ $d->id }}, {{ $d->Bank->id }}, '{{ $d->Bank->bank_name }}', '{{ $d->Bank->account_no }}')">Send
-                                                                Payment Details</button><br>
-                                                            @if ($d->followup->isNotEmpty())
-                                                                <small> Last Followup:
-                                                                    <strong>{{ $d->followup->last()->created_at }}</strong></small><br>
-                                                            @endif
-                                                            @php
-                                                                $delay = DB::table('follow_up')
-                                                                    ->where('invoice_id', $d->id)
-                                                                    ->where('delay', '!=', '0')
-                                                                    ->count();
-                                                            @endphp
-                                                            @if ($delay >= 1)
-                                                                <span class="badge bg-danger">Delay
-                                                                    :{{ $delay }}</span>
-                                                            @endif
-                                                        </td>
-                                                        <td>
-                                                            @if ($d->status == '2')
-                                                                <a class="btn btn-sm btn-outline-secondary"
-                                                                    href="{{ route('bill', $d->id) }}">View Bill</a>
-                                                                <a class="btn btn-sm btn-outline-secondary"
-                                                                    href="{{ route('invoice.details', $d->id) }}">All
-                                                                    Details</a>
-                                                            @else
-                                                                <a class="btn btn-sm btn-primary"
-                                                                    href="{{ $d->pdf }}" target="_blank">View
-                                                                    Invoice</a>
-                                                                @if ($d->payment && $d->payment->count() >= 1)
-                                                                    <a class="btn btn-sm btn-warning"
-                                                                        href="{{ route('receipts', $d->id) }}">View
-                                                                        Receipts</a>
-                                                                @endif
-                                                            @endif
-
-                                                            <div class="btn-group">
-
-                                                            </div>
-                                                        </td>
-                                                        <td>
-                                                            @if ($d->status != '2')
-                                                                <a class="btn btn-sm btn-warning"
-                                                                    onclick="MarkAsPaid({{ $d->id }},{{ $d->balance }},'{{ $d->client->name ?? $d->lead->name }}')">Mark
-                                                                    as Paid</a><br>
-                                                            @endif
-                                                            @if ($d->status)
-                                                                @if ($d->is_project != 1)
-                                                                    <a class="btn btn-sm btn-primary mt-2"
-                                                                        href="{{ route('projects.create', ['invoiceId' => $d->id]) }}">Add
-                                                                        Project</a>
-                                                                @else
-                                                                    <a class="btn btn-sm btn-success mt-2"
-                                                                        href="#">Project Already Add</a>
-                                                                @endif
-                                                            @endif
-                                                        </td>
-                                                        <td>
-                                                            <div class="dropdown">
-                                                                <i class="bi bi-three-dots-vertical " type="button"
-                                                                    id="dropdownMenuButton2" data-bs-toggle="dropdown"
-                                                                    aria-expanded="false"></i>
-
-                                                                <ul class="dropdown-menu dropdown-menu-light"
-                                                                    aria-labelledby="dropdownMenuButton2">
-                                                                    @if ($d->status)
-                                                                        <!-- <li><a class="dropdown-item active" href="{{ route('projects.create', ['invoiceId' => $d->id]) }}">Add Project</a></li> -->
-                                                                        <!-- <li><a class="dropdown-item" href="{{ route('invoice.status', ['status' => '4', 'id' => $d->id]) }}">Receipts</a></li> -->
-                                                                    @else
-                                                                        <li><a class="dropdown-item active"
-                                                                                href="#">Cancel</a></li>
-                                                                    @endif
-
-                                                                </ul>
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                @endforeach
-                                            @else
-                                                <tr>
-                                                    <td colspan="9" class="text-center">No data available</td>
-                                                </tr>
-                                            @endif
-                                        </tbody>
-                                    </table>
-                                </div>
-
-
+                            <div class="col-md-2">
+                                <select class="form-select" name="invoice_day">
+                                    <option value="">All Dates</option>
+                                    <option value="Today">Today</option>
+                                    <option value="Yesterday">Yesterday</option>
+                                    <option value="This Week">This Week</option>
+                                    <option value="month">This Month</option>
+                                    <option value="custom">Custom Range</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2 date-range-group" style="display: none;">
+                                <input type="date" name="from_date" class="form-control">
+                            </div>
+                            <div class="col-md-2 date-range-group" style="display: none;">
+                                <input type="date" name="to_date" class="form-control">
                             </div>
 
-                            <!-- Pagination Section -->
-                            <div class="pagination-links">
-                                @include('admin.invoice.partials.pagination')
+                            <div class="col-md-2">
+                                <select class="form-select" name="invoice_status">
+                                    <option value="">All Status</option>
+                                    <option value="fresh">Fresh Sale</option>
+                                    <option value="upsale">Up Sale</option>
+                                    <option value="partial-paid">Partial Paid</option>
+                                    <option value="Paid">Paid</option>
+                                    <option value="un-paid">Unpaid</option>
+                                </select>
+                            </div>
+                            <div class="col-md-auto">
+                                <button type="submit" class="btn btn-primary">Filter</button>
+                                <button type="button" id="reset-btn" class="btn btn-outline-danger">Reset</button>
                             </div>
                         </div>
+                    </form>
+
+                    <div class="row mb-4 g-3 text-center">
+                        <div class="col">
+                            <div class="p-2 border rounded bg-light">
+                                <small class="text-muted">Total Count</small>
+                                <h5 class="fw-bold mb-0" id="stat-count">0</h5>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="p-2 border rounded bg-light">
+                                <small class="text-muted">Total Amount</small>
+                                <h5 class="fw-bold mb-0 text-primary" id="stat-amount">0</h5>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="p-2 border rounded bg-light">
+                                <small class="text-muted">Received</small>
+                                <h5 class="fw-bold mb-0 text-success" id="stat-received">0</h5>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="p-2 border rounded bg-light">
+                                <small class="text-muted">Balance Due</small>
+                                <h5 class="fw-bold mb-0 text-danger" id="stat-balance">0</h5>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-hover table-bordered w-100" id="invoices-table">
+                            <thead class="bg-light text-secondary">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Client Details</th>
+                                    <th>Amount Details</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
                     </div>
                 </div>
             </div>
         </div>
     </section>
+
+    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
+    
+    <script>
+        $(document).ready(function() {
+            // 1. Initialize DataTable
+            var table = $('#invoices-table').DataTable({
+                processing: true,
+                serverSide: true,
+                ajax: {
+                    url: "{{ route('invoice.index') }}",
+                    data: function (d) {
+                        // Append Form Data to Request
+                        var formData = $('#search-form').serializeArray();
+                        $.each(formData, function(i, field){
+                            d[field.name] = field.value;
+                        });
+                        // Append Quick Filter
+                        d.quick_filter = $('#quick-filters .active').data('filter');
+                    }
+                },
+                columns: [
+                    {data: 'DT_RowIndex', name: 'DT_RowIndex', orderable: false, searchable: false},
+                    {data: 'client_details', name: 'client.name'},
+                    {data: 'amount_details', name: 'total_amount'},
+                    {data: 'action', name: 'action', orderable: false, searchable: false},
+                ],
+                drawCallback: function() {
+                    loadStats(); // Reload top stats whenever table updates
+                }
+            });
+
+            // 2. Load Stats Function
+            function loadStats() {
+                var params = $('#search-form').serializeArray();
+                params.push({name: 'get_stats', value: 1});
+                params.push({name: 'quick_filter', value: $('#quick-filters .active').data('filter')});
+
+                $.ajax({
+                    url: "{{ route('invoice.index') }}",
+                    data: params,
+                    success: function(res) {
+                        $('#stat-count').text(res.total_invoice);
+                        $('#stat-amount').text(res.total_amount);
+                        $('#stat-received').text(res.total_received);
+                        $('#stat-balance').text(res.total_balance);
+
+                        // Update Quick Filter Badges
+                        $('#badge-all').text(res.all);
+                        $('#badge-today_invoice').text(res.today_invoice);
+                        $('#badge-today_followup').text(res.today_followup);
+                        $('#badge-today_billing').text(res.today_billing);
+                        $('#badge-today_reminder').text(res.today_reminder);
+                    }
+                });
+            }
+
+            // 3. Event Listeners
+            $('#search-form').on('submit', function(e) {
+                e.preventDefault();
+                table.draw();
+            });
+
+            $('#reset-btn').on('click', function() {
+                $('#search-form')[0].reset();
+                $('#quick-filters .btn').removeClass('active btn-primary').addClass('btn-outline-secondary');
+                $('#quick-filters .btn:first').addClass('active btn-primary').removeClass('btn-outline-secondary');
+                $('.date-range-group').hide();
+                table.draw();
+            });
+
+            // Quick Filter Buttons
+            $('#quick-filters .btn').on('click', function() {
+                $('#quick-filters .btn').removeClass('active btn-primary').addClass('btn-outline-secondary');
+                $(this).removeClass('btn-outline-secondary').addClass('active btn-primary');
+                table.draw();
+            });
+
+            // Toggle Custom Date Inputs
+            $('select[name="invoice_day"]').on('change', function() {
+                if($(this).val() == 'custom') {
+                    $('.date-range-group').show();
+                } else {
+                    $('.date-range-group').hide();
+                }
+            });
+        });
+    </script>
 
     <!-- Followup Modal -->
     @include('admin.invoice.partials.followup')
