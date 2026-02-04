@@ -2,146 +2,156 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use App\Models\{Projects,Tasks,User,Reports,TaskDates,TaskUser,TaskTiming,ProjectUser,DailyReport,Api};
-use Illuminate\Support\Facades\Validator;
-use Carbon\Carbon;
-use DateTime;
-use DB;
-use Illuminate\Support\Facades\Http;
-use Auth;
+use App\Models\User;
 use Illuminate\Support\Facades\Log;
-require_once app_path('Helpers/helpers.php'); // ✅ Include helper here
+use Illuminate\Http\Request;
+use Exception;
 
 class CronController extends Controller
 {
-    
-    public function login_reminder(){   
-        $users = User::whereNotIn('role_id', ['5', '1'])
-                ->where('is_active', 1)
-                ->whereDoesntHave('today_late')
-                ->whereDoesntHave('today_leave')
-                ->get();
-        
-        if ($users->count() > 0) {
-            foreach($users as $user){
-                $subject = "Login Reminder - Please log in to your account";
-                $senderRole = $user->roles()->first()->name; 
-                $header = "Login Reminder";
-                $message = "
-                    <p>Dear <strong>{$user->name}</strong>,<br> ({$senderRole})</p>
-                    <p>We noticed that you haven’t logged in today.</br>
-                    This is a gentle reminder to log in to your account to mark your attendance.</br>
-                    If you are facing any issues with login, please contact the HR department immediately.</p>
-                ";
+    // Define ignored roles (e.g., 1=Admin, 5=SuperAdmin)
+    private const IGNORED_ROLES = ['1', '5'];
 
-                $recipients = $user->email;
-                sendMail($recipients, $subject, $header, $footer  = null, $message);
+    /**
+     * Send reminders to employees who have not logged in yet.
+     */
+    public function login_reminder(): void
+    {
+        Log::info("Cron Started: Login Reminder");
+
+        try {
+            $users = User::with('roles')
+                ->whereNotIn('role_id', self::IGNORED_ROLES)
+                ->where('is_active', 1)
+                ->whereDoesntHave('today_late')  // No attendance record
+                ->whereDoesntHave('today_leave') // No leave record
+                ->get();
+
+            if ($users->isEmpty()) {
+                Log::info('Login Reminder: No pending users found.');
+                return;
             }
-            Log::info('Login reminder sent successfully.');
-        } else {
-            Log::info('No users found for login reminder.');
+
+            foreach ($users as $user) {
+                $roleName = $user->roles->first()?->name ?? 'Employee';
+                
+                $subject = "Login Reminder - Please log in to your account";
+                $header  = "Login Reminder";
+                $message = $this->buildReminderHtml($user->name, $roleName);
+
+                // Using the helper function
+                sendMail($user->email, $subject, $header, null, $message);
+            }
+
+            Log::info("Login Reminder: Sent to {$users->count()} users.");
+
+        } catch (Exception $e) {
+            Log::error("Login Reminder Error: " . $e->getMessage());
         }
     }
 
-    public function admin_login_mail(){
-        $users = User::whereNotIn('role_id', ['5', '1'])
-            ->where('is_active', 1)
-            ->whereHas('today_late')
-            ->get();    
+    /**
+     * Send a daily report to the Admin containing a list of late employees.
+     */
+    public function admin_login_mail(): void
+    {
+        Log::info("Cron Started: Admin Late Report");
 
-        // Check if any users found
-        if ($users->isEmpty()) {
-            Log::info('No users found for login reminder.');
-            return;
+        try {
+            $users = User::with(['roles', 'today_late'])
+                ->whereNotIn('role_id', self::IGNORED_ROLES)
+                ->where('is_active', 1)
+                ->has('today_late') // Only get users who have a 'late' record
+                ->get();
+
+            if ($users->isEmpty()) {
+                Log::info('Admin Late Report: No late employees today.');
+                return;
+            }
+
+            $todayDate  = now()->format('d M Y');
+            $subject    = "Login Employee - {$todayDate}";
+            $header     = "Late Attendance Report";
+            $adminEmail = 'suyalvikas@gmail.com';
+
+            // Build HTML
+            $messageBody = $this->buildAdminReportHtml($users, $todayDate);
+
+            // Send Email
+            sendMail($adminEmail, $subject, $header, null, $messageBody);
+
+            Log::info("Admin Late Report: Sent successfully.");
+
+        } catch (Exception $e) {
+            Log::error("Admin Late Report Error: " . $e->getMessage());
         }
+    }
 
-        $today = now()->format('d M Y');
-        $subject = "Login Employee - {$today}";
-        $header = "Login Employee";
+    /**
+     * Placeholder for Report Warning Logic
+     */
+    public function report_warning()
+    {
+        // Logic for warning reports goes here
+    }
 
-        // Build table rows
-        $tableRows = '';
+    // -------------------------------------------------------------------------
+    // Private Helpers (HTML Generators)
+    // -------------------------------------------------------------------------
+
+    private function buildReminderHtml($name, $role): string
+    {
+        return "
+            <p>Dear <strong>{$name}</strong> <small>({$role})</small>,</p>
+            <p>We noticed that you haven't logged in today.<br>
+            This is a gentle reminder to log in to your account to mark your attendance.<br>
+            If you are facing any issues with login, please contact the HR department immediately.</p>
+        ";
+    }
+
+    private function buildAdminReportHtml($users, $date): string
+    {
+        $rows = '';
+
         foreach ($users as $user) {
             $roleName    = $user->roles->pluck('name')->implode(', ');
-            $lateReason  = optional($user->today_late)->reason ?? 'On time';
-            $loginTime   = optional($user->today_late)->login_time ?? 'On time';
+            $lateReason  = $user->today_late?->reason ?? 'On time';
+            $loginTime   = $user->today_late?->login_time ?? 'On time';
+            
             $phoneNumber = preg_replace('/\D/', '', $user->phone_no); 
-            $message     = urlencode("Hello {$user->name}, I’ve noticed your login time today ({$loginTime}). Please make sure to log in on time going forward.");
+            $waMessage   = urlencode("Hello {$user->name}, I’ve noticed your login time today ({$loginTime}). Please make sure to log in on time going forward.");
 
-            $tableRows .= "
+            $rows .= "
                 <tr>
-                    <td style='padding:8px;border:1px solid #ddd;'>{$user->name} <small>({$roleName})</small></td>
+                    <td style='padding:8px;border:1px solid #ddd;'>
+                        {$user->name} <br><small style='color:#666;'>{$roleName}</small>
+                    </td>
                     <td style='padding:8px;border:1px solid #ddd;'>{$loginTime}</td>
                     <td style='padding:8px;border:1px solid #ddd;'>{$lateReason}</td>
                     <td style='padding:8px; border:1px solid #ddd; text-align:center;'>
-                        <a href='https://wa.me/+91{$phoneNumber}?text={$message}' target='_blank' style='text-decoration:none; cursor:pointer;'>✉️</a>
+                        <a href='https://wa.me/91{$phoneNumber}?text={$waMessage}' target='_blank' style='text-decoration:none; font-size:16px;'>✉️ WhatsApp</a>
                     </td>
                 </tr>
             ";
         }
 
-        // Build the HTML table
-        $messageBody = "
+        return "
             <p style='font-family:Arial,sans-serif;color:#555;'>
-                The following employees were late today ({$today}):
+                The following employees were late today ({$date}):
             </p>
             <table style='border-collapse:collapse;width:100%;font-family:Arial,sans-serif;'>
                 <thead>
                     <tr style='background-color:#f4f4f4;'>
-                        <th style='padding:8px;border:1px solid #ddd;text-align:left;'>Employee Name</th>
-                        <th style='padding:8px;border:1px solid #ddd;text-align:left;'>Login Time</th>
-                        <th style='padding:8px;border:1px solid #ddd;text-align:left;'>Late Reason</th>
-                        <th style='padding:8px;border:1px solid #ddd;text-align:left;'>Send Message</th>
+                        <th style='padding:8px;border:1px solid #ddd;text-align:left;'>Employee</th>
+                        <th style='padding:8px;border:1px solid #ddd;text-align:left;'>Time</th>
+                        <th style='padding:8px;border:1px solid #ddd;text-align:left;'>Reason</th>
+                        <th style='padding:8px;border:1px solid #ddd;text-align:left;'>Action</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {$tableRows}
+                    {$rows}
                 </tbody>
             </table>
         ";
-
-
-        // $api = Api::first();
-
-        // // Build message lines
-        // $lines = [];
-        // foreach ($users as $user) {
-        //     $roleName = $user->roles->pluck('name')->implode(', ');
-        //     $lateReason = optional($user->today_late)->reason ?? 'No reason provided';
-        //     $lines[] = "{$user->name} ({$roleName}) => {$lateReason}";
-        // }
-
-        // // Combine lines into one text message
-        // $messageBody = "Hello Admin,\nThe following users were late today:\n\n" . implode("\n", $lines);
-
-
-        // // Send single message
-        // $params = [
-        //     'recipient' => '919997294527', // admin number
-        //     'apikey'    => $api->key,
-        //     'text'      => $messageBody,
-        // ];
-
-
-        // $queryString = http_build_query($params);
-        // $apiUrl = $api->url;
-        // $url = "{$apiUrl}?{$queryString}";
-        //     $response = Http::get($url);
-        // if ($response->successful()) {
-        //     Log::info('Login reminder sent successfully to admin.');
-        // } else {
-        //     Log::warning('Failed to send login reminder to admin.');
-        // }
-           // Send email
-        sendMail('suyalvikas@gmail.com', $subject, $header, null, $messageBody);
-
-        Log::info('Login reminder email sent successfully to admin.');
-
-    }
-
-
-    public function report_warning(){
-        
     }
 }
