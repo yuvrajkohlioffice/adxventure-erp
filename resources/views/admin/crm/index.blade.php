@@ -183,25 +183,25 @@
                     </div>
 
                     <div class="card-body">
-                        <div class="row mt-2">
-                            <div class="col-9">
-                                <div id="filter-buttons">
-                                    <div class="d-flex " id="today-followup-btn">
-                                        @if (Auth::user()->hasRole(['Super-Admin', 'Admin', 'Marketing-Manager']))
+                       <div class="row mt-2 align-items-center">
+                           
+                        <div class="col-lg-9 col-md-12">
+                            <div id="filter-buttons">
+                                <div class="d-flex flex-wrap gap-2" id="today-followup-btn"> @if (Auth::user()->hasRole(['Super-Admin', 'Admin', 'Marketing-Manager']))
                                             <button class="btn btn-sm btn-outline-secondary  mx-2" style="height:10%"
                                                 data-filter="all_lead">All leads <span
                                                     class="badge bg-light text-dark">{{ $userRoleData['total_leads'] ?? 0 }}</span></button>
                                         @endif
-                                        <button class="btn btn-sm btn-outline-secondary  mx-2" style="height:10%"
-                                            data-filter="fresh_lead">Fresh leads <span
+                                        <button class="btn btn-sm btn-outline-info " style="height:10%"
+                                            data-filter="fresh_lead"><i class="bi bi-stars"></i> Fresh leads <span
                                                 class="badge bg-light text-dark">{{ $userRoleData['freshLead'] ?? 0 }}</span></button>
-                                        <button class="btn btn-sm btn-outline-secondary  mx-2" style="height:10%"
-                                            data-filter="all_followup">Followup leads <span
+                                        <button class="btn btn-sm btn-outline-primary  mx-2" style="height:10%"
+                                            data-filter="all_followup"><i class="bi bi-telephone-outbound"></i> Followup leads <span
                                                 class="badge bg-light text-dark">{{ $userRoleData['total_followup'] ?? 0 }}</span>
                                         </button>
 
-                                        <button class="btn btn-sm btn-outline-secondary  mx-2" style="height:10%"
-                                            data-filter="delay">Delay leads<span
+                                        <button class="btn btn-sm btn-outline-danger" style="height:10%"
+                                            data-filter="delay"><i class="bi bi-alarm"></i> Delay leads<span
                                                 class="badge bg-light text-dark">{{ $userRoleData['delay'] ?? 0 }}</span></button>
 
                                         <button class="btn btn-sm btn-outline-secondary  mx-2" style="height:10%"

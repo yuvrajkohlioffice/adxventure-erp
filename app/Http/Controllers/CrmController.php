@@ -670,44 +670,51 @@ HTML;
                         ->orWhere('is_completed', '!=', 1);
                 });
                 break;
-            case 'today_delay':
+            
+           case 'today_delay':
                 $query->whereHas('Followup', function ($q) {
-                    $q->where(function ($query) {
-                        $query->where('delay', 1)
-                            ->orWhere('is_completed', '!=', 1);
-                    })->where('next_date', Carbon::today());
+                    $q->where('is_completed', '!=', 1)
+                      ->whereDate('next_date', Carbon::today());
                 });
                 break;
+
+            // 3. Specific Day Delays (Checking exact dates)
             case 'delay_1_days':
                 $query->whereHas('Followup', function ($q) {
-                    $q->where('delay', 1)
-                        ->orWhere('is_completed', '!=', 1);
+                    $q->where('is_completed', '!=', 1)
+                      ->whereDate('next_date', Carbon::today()->subDays(1)); // Exactly Yesterday
                 });
                 break;
+
             case 'delay_2_days':
                 $query->whereHas('Followup', function ($q) {
-                    $q->where('delay', 1)
-                        ->orWhere('is_completed', '!=', 1);
+                    $q->where('is_completed', '!=', 1)
+                      ->whereDate('next_date', Carbon::today()->subDays(2)); // Exactly 2 Days Ago
                 });
                 break;
+
             case 'delay_3_days':
                 $query->whereHas('Followup', function ($q) {
-                    $q->where('delay', 1)
-                        ->orWhere('is_completed', '!=', 1);
+                    $q->where('is_completed', '!=', 1)
+                      ->whereDate('next_date', Carbon::today()->subDays(3)); // Exactly 3 Days Ago
                 });
                 break;
+
             case 'delay_4_days':
                 $query->whereHas('Followup', function ($q) {
-                    $q->where('delay', 1)
-                        ->orWhere('is_completed', '!=', 1);
+                     $q->where('is_completed', '!=', 1)
+                      ->whereDate('next_date', '<=', Carbon::today()->subDays(5)); // 5 Days Ago OR OLDER
                 });
                 break;
+
+            // 4. Long Term Delays (5 days or MORE)
             case 'delay_5+_days+':
                 $query->whereHas('Followup', function ($q) {
-                    $q->where('delay', 1)
-                        ->orWhere('is_completed', '!=', 1);
+                    $q->where('is_completed', '!=', 1)
+                      ->whereDate('next_date', '<=', Carbon::today()->subDays(5)); // 5 Days Ago OR OLDER
                 });
                 break;
+            
             default:
                 $query->whereHas('Followup', function ($q) {
                     $q->whereNotIn('reason', ['Wrong Information', 'Not interested', 'Work with other company']);
