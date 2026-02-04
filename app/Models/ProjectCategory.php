@@ -25,7 +25,7 @@ class ProjectCategory extends Model
     }
 
     public function lead(){
-        return $this->hasMany(lead::class, 'project_category', 'id');
+        return $this->hasMany(Lead::class, 'project_category', 'id');
     }
 
     public function categories()

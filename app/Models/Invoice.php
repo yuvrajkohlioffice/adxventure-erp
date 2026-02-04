@@ -15,7 +15,7 @@ class Invoice extends Model
     protected $guarded  =[];
     
     public function lead(){
-        return $this->belongsTo(lead::class,'lead_id','id');
+        return $this->belongsTo(Lead::class,'lead_id','id');
     }
 
     public function client(){

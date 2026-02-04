@@ -176,7 +176,7 @@ class User extends Authenticatable
     }
 
     public function lead(){
-        return $this->hasMany(lead::class,'assigned_user_id','id');
+        return $this->hasMany(Lead::class,'assigned_user_id','id');
     }
 
     public function followup(){

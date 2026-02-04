@@ -1254,7 +1254,7 @@ HTML;
 
     public function Status($id, $status)
     {
-        $lead = lead::find($id);
+        $lead = Lead::find($id);
         $lead->update(['lead_status' => $status]);
         return redirect()->back()->with('message', 'status Changed !!');
     }
@@ -2173,7 +2173,7 @@ HTML;
 
     public function freshsale($id)
     {
-        $client = lead::findorfail($id);
+        $client = Lead::findorfail($id);
         $offices = Office::orderBy('name', 'asc')->get();
         $invoice = ProjectInvoice::with('lead', 'services', 'Bank')->where('lead_id', $id)->first();
         return view('admin.crm.freshsale', compact('client', 'offices', 'invoice'));
@@ -2397,7 +2397,7 @@ HTML;
 
     public function proposalType(Request $request)
     {
-        $lead = lead::findorfail($request->id);
+        $lead = Lead::findorfail($request->id);
         if ($lead) {
             $category = Category::findorFail($lead->client_category);
             $data = [

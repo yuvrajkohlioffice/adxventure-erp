@@ -210,7 +210,7 @@ class FollowupController extends Controller
             return response()->json(['errors' => $validator->errors()]);
         }
 
-        $lead = lead::findOrFail($user);
+        $lead = Lead::findOrFail($user);
         $apiKey = 'EfJ3kJdXG6cz';
         $whatsappApiUrl = 'http://api.textmebot.com/send.php';
         $message = $request->offer_message;
@@ -314,7 +314,7 @@ class FollowupController extends Controller
             }
 
             if ($emails->save()) {
-                $lead = lead::findOrFail($user);
+                $lead = Lead::findOrFail($user);
                 $template = Template::find($emails->template_id);
 
                 if ($request->has('send_mail')) {

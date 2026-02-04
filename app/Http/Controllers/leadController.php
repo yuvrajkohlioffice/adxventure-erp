@@ -398,7 +398,7 @@ class leadController extends Controller
     public function delete(Request $request){
         $users = $request->input('users');
         if ($users) {
-            lead::whereIn('id', $users)->delete();
+            Lead::whereIn('id', $users)->delete();
             return response()->json(['success' => true]);
         }
         return response()->json(['success' => false], 400);
@@ -410,7 +410,7 @@ class leadController extends Controller
         $sentCount = 0;
     
         foreach ($users as $userId) {
-            $lead = lead::findOrFail($userId);
+            $lead = Lead::findOrFail($userId);
     
             // Render HTML view (example HTML content)
             $html = "<h1>Manjeet</h1>";
@@ -459,7 +459,7 @@ class leadController extends Controller
 
     public function edit(Request $request){
        if($request->type === 'edit-lead'){
-            $lead = lead::findorfail($request->id);
+            $lead = Lead::findorfail($request->id);
             return response()->json(['success' => true, 'lead' => $lead]);
        }
     }

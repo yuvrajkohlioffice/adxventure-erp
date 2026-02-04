@@ -22,7 +22,7 @@ class Payment extends Model
     }
 
     public function lead(){
-        return $this->hasOne(lead::class,'id','lead_id');
+        return $this->hasOne(Lead::class,'id','lead_id');
     }
     
     public function client(){
