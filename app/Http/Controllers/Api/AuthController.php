@@ -9,7 +9,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Auth;
 use Carbon\Carbon;
-use App\Models\{User,LateReason,lead,Followup};
+use App\Models\{User,LateReason,Lead,Followup};
 use App\Helpers\LogHelper;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;

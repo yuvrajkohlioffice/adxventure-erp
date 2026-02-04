@@ -7,7 +7,7 @@ use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 use League\Csv\Reader;
 use League\Csv\Statement;
-use App\Models\{Invoice,Role,User,Work,Payment,ProjectCategory,lead,Category,TotalAmount,Projects,Followup,Template,Email,Office,Country,CustomRole,Bank,Proposal,Expenses,ProjectInvoice,Message};
+use App\Models\{Invoice,Role,User,Work,Payment,ProjectCategory,Lead,Category,TotalAmount,Projects,Followup,Template,Email,Office,Country,CustomRole,Bank,Proposal,Expenses,ProjectInvoice,Message};
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\DB;

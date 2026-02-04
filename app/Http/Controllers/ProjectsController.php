@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Models\{User,Projects,Tasks,Category,ProjectCategory,Work,Invoice,Payment,Department,lead,CustomRole,client,ProjectUser,TaskUser,Proposal,Credential,Roles,ProjectInvoice};
+use App\Models\{User,Projects,Tasks,Category,ProjectCategory,Work,Invoice,Payment,Department,Lead,CustomRole,client,ProjectUser,TaskUser,Proposal,Credential,Roles,ProjectInvoice};
 use Illuminate\Support\Facades\Validator;
 use Carbon\Carbon;
 use DB;

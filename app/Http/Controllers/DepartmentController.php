@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Models\{User,lead,Department};
+use App\Models\{User,Lead,Department};
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Hash;
 

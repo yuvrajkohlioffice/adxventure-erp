@@ -96,10 +96,14 @@
                                 <div class="col-md-12  mt-3">
                                     <label for="project_category">Project Category</label>
                                     <select name="project_category[]"  id="project_category" class="form-select select-2-multiple" multiple placeholder="Select Project Category.." >
-                                        @php
-                                            $projectCategoryIds = json_decode($lead->project_category, true) ?? [];
-                                            $allSelected = (count($projectCategoryIds) === count($projectCategories));
-                                        @endphp
+                                       @php
+    // Check if it's already an array; if not, decode it.
+    $projectCategoryIds = is_array($lead->project_category) 
+        ? $lead->project_category 
+        : (json_decode($lead->project_category, true) ?? []);
+
+    $allSelected = (count($projectCategoryIds) === count($projectCategories));
+@endphp
                                         @if(isset($projectCategories))
                                             @foreach($projectCategories as $category)
                                                 <option value="{{ $category->id }}" {{ in_array($category->id, $projectCategoryIds) ? 'selected' : '' }}>{{ $category->name }}</option>

@@ -10,7 +10,7 @@ use League\Csv\Statement;
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
-use App\Models\{Invoice,User,Work,Payment,ProjectCategory,lead,Category,TotalAmount,Projects,Followup,Country,CustomRole,Template};
+use App\Models\{Invoice,User,Work,Payment,ProjectCategory,Lead,Category,TotalAmount,Projects,Followup,Country,CustomRole,Template};
 
 use Carbon\Carbon;
 

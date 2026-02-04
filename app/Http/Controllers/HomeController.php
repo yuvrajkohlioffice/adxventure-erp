@@ -1,7 +1,7 @@
 <?php
 
 namespace App\Http\Controllers;
-use App\Models\{Invoice,User,Work,Payment,ProjectCategory,lead,Category,TotalAmount,Projects,Followup};
+use App\Models\{Invoice,User,Work,Payment,ProjectCategory,Lead,Category,TotalAmount,Projects,Followup};
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;

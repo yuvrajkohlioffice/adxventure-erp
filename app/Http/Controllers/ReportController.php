@@ -496,7 +496,8 @@ class ReportController extends Controller
         return view('admin.user.user-late-report', compact('data', 'count','user'));
     }
 
-    public function otherReport(Request $request){
+    public function otherReport(Request $request)
+    {
         $data = $request->all();
         $subject = "Today Report – " . auth()->user()->name . " – " . now()->format('d M Y, h:i A');
         $header = "Today Report";
