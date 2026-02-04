@@ -10,7 +10,7 @@ use PHPMailer\PHPMailer\Exception;
 use League\Csv\Reader;
 use League\Csv\Statement;
 
-use App\Models\{Invoice, User, Work, Payment, ProjectCategory, lead, Category, TotalAmount, Projects, Followup, Template, Email, Office, Country, CustomRole, Bank, Proposal, Expenses, ProjectInvoice, Message, Api};
+use App\Models\{Invoice, User, Work, Payment, ProjectCategory, Lead, Category, TotalAmount, Projects, Followup, Template, Email, Office, Country, CustomRole, Bank, Proposal, Expenses, ProjectInvoice, Message, Api};
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\DB;
@@ -97,94 +97,107 @@ class CrmController extends Controller
         return view('admin.crm.index', compact('userRoleData', 'users', 'countries', 'services', 'projectCategories', 'categories', 'messagetemplates', 'bdeReports', 'count'));
     }
 
-    
 
-public function data(Request $request)
-{
-    // 1. Pre-fetch Static Data (Optimizes the 'service' column N+1 issue)
-    // Instead of querying DB for every row, we load names into memory once.
-    $projectCategories = ProjectCategory::pluck('name', 'id')->toArray();
 
-    // 2. Query Construction
-    $user = auth()->user();
-    
-    $query = Lead::with([
-            'category', 
-            'countries', 
-            'user', 
-            'AssignedUser', 
+    public function data(Request $request)
+    {
+        // 1. Pre-fetch Static Data (Optimizes the 'service' column N+1 issue)
+        // Instead of querying DB for every row, we load names into memory once.
+        $projectCategories = ProjectCategory::pluck('name', 'id')->toArray();
+
+        // 2. Query Construction
+        $user = auth()->user();
+
+        $query = Lead::with([
+            'category',
+            'countries',
+            'user',
+            'AssignedUser',
             'invoice',
             // Load only the latest followup to save memory
             'Followup' => fn($q) => $q->latest()->limit(1)
         ])
-        // Let SQL do the counting instead of PHP
-        ->withCount([
-            'Followup as total_followups',
-            'Followup as delayed_followups' => fn($q) => $q->where('delay', 1)
-        ]);
+            // Let SQL do the counting instead of PHP
+            ->withCount([
+                'Followup as total_followups',
+                'Followup as delayed_followups' => fn($q) => $q->where('delay', 1)
+            ]);
 
-    // 3. Apply Role Scoping
-    $query->when($user && $user->hasRole(['BDE', 'Business Development Intern']), function ($q) use ($user) {
-        $q->where('assigned_user_id', $user->id);
-    });
+        // 3. Apply Role Scoping
+        $query->when($user && $user->hasRole(['BDE', 'Business Development Intern']), function ($q) use ($user) {
+            $q->where('assigned_user_id', $user->id);
+        });
 
-    // 4. Apply Filters & Ordering
-    $this->applyFilters($query, $request);
-    $query->orderByDesc('id');
+        // 4. Apply Filters & Ordering
+        $this->applyFilters($query, $request);
+        $query->orderByDesc('id');
 
-    // 5. Build DataTable
-    return DataTables::of($query)
-        ->addIndexColumn()
-        ->editColumn('client_info', function ($lead) {
-            // Helper variables to keep logic separate from HTML
-            $lead = EncodingHelper::sanitizeUtf8($lead); // Keep your custom helper
-            
-            // Logic
-            $daysDiff = now()->diffInDays($lead->created_at);
-            $maskedMobile = substr($lead->phone, 0, 5) . '******';
-            $categoryName = $lead->category->name ?? 'N/A';
-            
-            // Status Badge Logic
-            $statusBadge = match (true) {
-                $lead->status == 1      => '<span class="badge bg-success">Convert</span>',
-                $lead->lead_status == 1 => '<span class="badge bg-danger">Hot</span>',
-                $lead->lead_status == 2 => '<span class="badge bg-warning">Warm</span>',
-                default                 => '<span class="badge bg-primary">Cold</span>',
-            };
+        // 5. Build DataTable
+        return DataTables::of($query)
+            ->addIndexColumn()
+            ->editColumn('client_info', function ($lead) {
+                // Helper variables to keep logic separate from HTML
+                $lead = EncodingHelper::sanitizeUtf8($lead); // Keep your custom helper
 
-            // Source Logic
-            $leadSource = match ($lead->lead_source) {
-                1 => 'Website', 2 => 'Social Media', 3 => 'Reference', default => 'Bulk Lead',
-            };
+                // Logic
+                $daysDiff = now()->diffInDays($lead->created_at);
+                $maskedMobile = substr($lead->phone, 0, 5) . '******';
+                $categoryName = $lead->category->name ?? 'N/A';
 
-            // Edit Button Logic (Using json_encode for safe JS parameters)
-            $editBtn = '';
-            if ($lead->status != 1) {
-                $jsParams = json_encode([
-                    $lead->id, $lead->name, $lead->email, $lead->country, $lead->phone,
-                    $lead->city, $lead->client_category, $lead->website, $lead->domian_expire,
-                    $lead->lead_status, $lead->lead_source, $lead->ref_name, $lead->assigned_user_id
-                ]);
-                // Strip the outer brackets of json_encode to fit your function signature
-                $jsParams = trim($jsParams, '[]'); 
-                $editBtn = "<span class='badge text-dark' style='cursor:pointer' onclick='EditLead($jsParams)'>Edit</span>";
-            }
+                // Status Badge Logic
+                $statusBadge = match (true) {
+                    $lead->status == 1      => '<span class="badge bg-success">Convert</span>',
+                    $lead->lead_status == 1 => '<span class="badge bg-danger">Hot</span>',
+                    $lead->lead_status == 2 => '<span class="badge bg-warning">Warm</span>',
+                    default                 => '<span class="badge bg-primary">Cold</span>',
+                };
 
-            // Followup Delay Logic
-            $delayBadge = '';
-            $lastFollowup = $lead->Followup->first(); // Since we limited eager load to 1
-            if ($lastFollowup && $lastFollowup->next_date < now()) {
-                $daysLate = now()->diffInDays($lastFollowup->next_date);
-                $delayBadge = "<span class='badge bg-danger'>Last followup expired: $daysLate days ago</span>";
-            }
+                // Source Logic
+                $leadSource = match ($lead->lead_source) {
+                    1 => 'Website',
+                    2 => 'Social Media',
+                    3 => 'Reference',
+                    default => 'Bulk Lead',
+                };
 
-            $emailLink = !empty($lead->email) ? "<small><a href='mailto:{$lead->email}'><i class='bi bi-envelope'></i> {$lead->email}</a></small><br>" : "";
-            $daysAgoBadge = $daysDiff > 1 ? "<span class='badge bg-secondary'>{$daysDiff} Days Ago</span>" : "";
-            $createdAt = $lead->created_at->format('d-m-y H:i:s');
-            $shortName = substr(ucfirst($lead->name), 0, 20) . '..';
+                // Edit Button Logic (Using json_encode for safe JS parameters)
+                $editBtn = '';
+                if ($lead->status != 1) {
+                    $jsParams = json_encode([
+                        $lead->id,
+                        $lead->name,
+                        $lead->email,
+                        $lead->country,
+                        $lead->phone,
+                        $lead->city,
+                        $lead->client_category,
+                        $lead->website,
+                        $lead->domian_expire,
+                        $lead->lead_status,
+                        $lead->lead_source,
+                        $lead->ref_name,
+                        $lead->assigned_user_id
+                    ]);
+                    // Strip the outer brackets of json_encode to fit your function signature
+                    $jsParams = trim($jsParams, '[]');
+                    $editBtn = "<span class='badge text-dark' style='cursor:pointer' onclick='EditLead($jsParams)'>Edit</span>";
+                }
 
-            // Heredoc for clean HTML
-            return <<<HTML
+                // Followup Delay Logic
+                $delayBadge = '';
+                $lastFollowup = $lead->Followup->first(); // Since we limited eager load to 1
+                if ($lastFollowup && $lastFollowup->next_date < now()) {
+                    $daysLate = now()->diffInDays($lastFollowup->next_date);
+                    $delayBadge = "<span class='badge bg-danger'>Last followup expired: $daysLate days ago</span>";
+                }
+
+                $emailLink = !empty($lead->email) ? "<small><a href='mailto:{$lead->email}'><i class='bi bi-envelope'></i> {$lead->email}</a></small><br>" : "";
+                $daysAgoBadge = $daysDiff > 1 ? "<span class='badge bg-secondary'>{$daysDiff} Days Ago</span>" : "";
+                $createdAt = $lead->created_at->format('d-m-y H:i:s');
+                $shortName = substr(ucfirst($lead->name), 0, 20) . '..';
+
+                // Heredoc for clean HTML
+                return <<<HTML
                 <div class='order-md-1'>
                     <h6 class='mb-1 text-dark fs-15 lead-name fw-bold' data-id='{$lead->id}' data-name='{$lead->name}' style='cursor:pointer'>{$shortName}</h6>
                     <small class='text-muted'>({$categoryName})</small> | 
@@ -200,13 +213,13 @@ public function data(Request $request)
                     {$delayBadge}
                 </div>
 HTML;
-        })
-        ->addColumn('service', function ($lead) use ($projectCategories) {
+            })
+            ->addColumn('service', function ($lead) use ($projectCategories) {
                 if (empty($lead->project_category)) return 'No Service';
-                
+
                 // FIX: Check if it's already an array (due to Model Casting)
                 $ids = $lead->project_category;
-                
+
                 if (is_string($ids)) {
                     $ids = json_decode($ids, true);
                 }
@@ -216,45 +229,62 @@ HTML;
 
                 // Map IDs to names using the pre-fetched array
                 $names = array_map(fn($id) => $projectCategories[$id] ?? '', $ids);
-                
+
                 return implode('<br>', array_filter($names));
             })
-        ->addColumn('location', function ($lead) {
-            $country = e($lead->countries->nicename ?? 'N/A');
-            $city = e($lead->city ?? 'N/A');
-            
-            return <<<HTML
+            ->addColumn('location', function ($lead) {
+                $country = e($lead->countries->nicename ?? 'N/A');
+                $city = e($lead->city ?? 'N/A');
+
+                return <<<HTML
                 <strong class='lead-country' data-id='{$lead->id}' data-country='{$country}' style='cursor:pointer'>
                     <i class='bi bi-geo-alt-fill'></i> {$country}
                 </strong><br>
                 <small class='lead-city' data-id='{$lead->id}' data-city='{$city}' style='cursor:pointer'>({$city})</small>
 HTML;
-        })
-        ->addColumn('followup', function ($lead) {
-            // Logic
-            $countText = $lead->total_followups >= 1 ? "({$lead->total_followups})" : "";
-            
-            $lastFollowupHtml = '';
-            if ($last = $lead->Followup->first()) {
-                $date = $last->created_at->format('d-m-y H:i:s');
-                $lastFollowupHtml = "<small>(Last Follow-up: {$date})</small><br><small>Reason: {$last->reason}</small><br>";
-            }
+            })
+   ->addColumn('followup', function ($lead) {
+    // 1. Sanitize the object
+    $lead = EncodingHelper::sanitizeUtf8($lead);
 
-            $delayedHtml = '';
-            if ($lead->delayed_followups >= 1) {
-                $delayedHtml = "<small class='badge bg-danger'>Delay: {$lead->delayed_followups}</small><br>";
-            }
+    // 2. Cache collection to avoid multiple database hits
+    $followups = $lead->followup; 
+    $totalCount = $followups->count();
+    
+    // 3. Prepare Javascript Variables (Escaped for safety)
+    $leadName = addslashes(e($lead->name));
+    $leadPhone = addslashes(e($lead->phone));
+    
+    // 4. Build the Button
+    $countLabel = $totalCount >= 1 ? " ({$totalCount})" : "";
+    
+    // Using double quotes for the attribute to allow single quotes inside the JS function
+    $html = "<a class='btn btn-primary btn-sm followupBtn' 
+                data-lead-id='{$lead->id}' 
+                onclick=\"Followup({$lead->id}, '{$leadName}', '{$leadPhone}', 1)\">
+                Follow up{$countLabel}
+             </a><br>";
 
-            return <<<HTML
-                <a class='btn btn-primary btn-sm' onclick="Followup({$lead->id}, '{$lead->name}', '{$lead->phone}', 1)">
-                    Follow up {$countText}
-                </a><br>
-                {$lastFollowupHtml}
-                {$delayedHtml}
-HTML;
-        })
-        ->addColumn('quotation', function ($lead) {
-            $buttons = <<<HTML
+    // 5. Handle Last Follow-up details
+    if ($totalCount >= 1) {
+        $last = $followups->last();
+        $formattedDate = $last->created_at->format('d-m-y H:i:s');
+        $reason = e($last->reason); 
+
+        $html .= "<small class='text-muted'>(Last Follow-up: {$formattedDate})</small><br>";
+        $html .= "<small>Reason: {$reason}</small><br>";
+    }
+
+    // 6. Handle Delayed status
+    $delayedCount = $followups->where('delay', 1)->count();
+    if ($delayedCount >= 1) {
+        $html .= "<span class='badge bg-danger' style='font-size: 0.75rem;'>Delay: {$delayedCount}</span><br>";
+    }
+
+    return $html;
+})
+            ->addColumn('quotation', function ($lead) {
+                $buttons = <<<HTML
                 <a class="btn btn-sm btn-outline-warning" onclick="SendMessage({$lead->id})" data-bs-toggle="tooltip" title="Send Portfolio">
                     <i class="bi bi-chat-dots"></i> Send Portfolio
                 </a><br>
@@ -263,47 +293,47 @@ HTML;
                 </a><br>
 HTML;
 
-            if ($lead->quotation == 1) {
-                $url = route('crm.prposel.mail.view', ['leadId' => $lead->id]);
-                $date = Carbon::parse($lead->quotation_date)->format('d-m-y H:i:s');
-                $buttons .= <<<HTML
+                if ($lead->quotation == 1) {
+                    $url = route('crm.prposel.mail.view', ['leadId' => $lead->id]);
+                    $date = Carbon::parse($lead->quotation_date)->format('d-m-y H:i:s');
+                    $buttons .= <<<HTML
                     <a href="{$url}" class="mt-2 btn btn-sm btn-outline-success" data-bs-toggle="tooltip" title="Resend Quotation">
                         <i class="bi bi-file-earmark-arrow-up"></i> Resend Quotation
                     </a><br>
                     <small>(Send Date: {$date})</small>
 HTML;
-            } else {
-                $url = route('crm.quotation.client', ['id' => $lead->id]);
-                $buttons .= <<<HTML
+                } else {
+                    $url = route('crm.quotation.client', ['id' => $lead->id]);
+                    $buttons .= <<<HTML
                     <a href="{$url}" class="mt-2 btn btn-sm btn-outline-success" data-bs-toggle="tooltip" title="Send Quotation">
                         <i class="bi bi-file-earmark-arrow-up"></i> Send Quotation
                     </a>
 HTML;
-            }
-            return $buttons;
-        })
-        ->addColumn('assigned_info', function ($lead) {
-            $creator = e($lead->user->name ?? 'N/A');
-            $assigner = e($lead->user->name ?? 'N/A'); // Logic check: Is assigner same as creator? 
-            $assignee = e($lead->AssignedUser->name ?? 'N/A'); // Fixed relationship access from assignd_user to AssignedUser
-            
-            return <<<HTML
+                }
+                return $buttons;
+            })
+            ->addColumn('assigned_info', function ($lead) {
+                $creator = e($lead->user->name ?? 'N/A');
+                $assigner = e($lead->user->name ?? 'N/A'); // Logic check: Is assigner same as creator? 
+                $assignee = e($lead->AssignedUser->name ?? 'N/A'); // Fixed relationship access from assignd_user to AssignedUser
+
+                return <<<HTML
                 <small>Created by : <strong>{$creator}</strong></small><br>
                 <small>Assigned by: <strong>{$assigner}</strong></small><br>
                 <small>Assigned User: <strong>{$assignee}</strong></small>
 HTML;
-        })
-        ->addColumn('actions', function ($lead) {
-            if ($lead->quotation != 1) return '-';
+            })
+            ->addColumn('actions', function ($lead) {
+                if ($lead->quotation != 1) return '-';
 
-            $viewUrl = route('crm.prposel.mail.view', ['leadId' => $lead->id]);
-            $paidOption = '';
-            
-            if ($lead->invoice) {
-                $paidOption = "<li><a class='dropdown-item' onclick=\"MarkAsPaid({$lead->invoice->id}, {$lead->invoice->balance}, '{$lead->name}')\">Mark as Paid</a></li>";
-            }
+                $viewUrl = route('crm.prposel.mail.view', ['leadId' => $lead->id]);
+                $paidOption = '';
 
-            return <<<HTML
+                if ($lead->invoice) {
+                    $paidOption = "<li><a class='dropdown-item' onclick=\"MarkAsPaid({$lead->invoice->id}, {$lead->invoice->balance}, '{$lead->name}')\">Mark as Paid</a></li>";
+                }
+
+                return <<<HTML
                 <div class='dropdown'>
                     <button class='btn btn-outline-default' data-bs-toggle='dropdown'><i class='bi bi-three-dots-vertical'></i></button>
                     <ul class='dropdown-menu'>
@@ -312,10 +342,10 @@ HTML;
                     </ul>
                 </div>
 HTML;
-        })
-        ->rawColumns(['checkbox', 'client_info', 'service', 'location', 'followup', 'quotation', 'assigned_info', 'actions'])
-        ->make(true);
-}
+            })
+            ->rawColumns(['checkbox', 'client_info', 'service', 'location', 'followup', 'quotation', 'assigned_info', 'actions'])
+            ->make(true);
+    }
 
 
 
@@ -485,244 +515,244 @@ HTML;
     }
 
     private function applyButtonFilter($query, $type, Request $request)
-{
-    if ($type) {
-        switch ($type) {
-            case 'all_lead':
-                // No additional filtering needed
-                break;
+    {
+        if ($type) {
+            switch ($type) {
+                case 'all_lead':
+                    // No additional filtering needed
+                    break;
 
-            // --- NEW HOT CLIENT FILTERS ---
-            case 'hot_client':
-                // Filters all leads marked as Hot (Status 1)
-                $query->where('lead_status', 1); 
-                break;
+                // --- NEW HOT CLIENT FILTERS ---
+                case 'hot_client':
+                    // Filters all leads marked as Hot (Status 1)
+                    $query->where('lead_status', 1);
+                    break;
 
-            case 'today_hot_client':
-                // Filters Hot leads that specifically have a followup Today
-                $query->where('lead_status', 1)
-                      ->whereHas('Followup', function ($q) {
-                          $q->whereDate('next_date', Carbon::today());
-                      });
-                break;
-            // ------------------------------
+                case 'today_hot_client':
+                    // Filters Hot leads that specifically have a followup Today
+                    $query->where('lead_status', 1)
+                        ->whereHas('Followup', function ($q) {
+                            $q->whereDate('next_date', Carbon::today());
+                        });
+                    break;
+                // ------------------------------
 
-            case 'fresh_lead':
-                $query->whereDoesntHave('Followup', function ($q) {
-                    $q->whereNotNull('lead_id');
-                });
-                break;
-            case 'convert_leads':
-                $query->where('status', 1);
-                break;
-            case 'today_fresh_lead':
-                $query->whereDate('created_at', Carbon::today())
-                    ->whereDoesntHave('Followup', function ($q) {
+                case 'fresh_lead':
+                    $query->whereDoesntHave('Followup', function ($q) {
                         $q->whereNotNull('lead_id');
                     });
-                break;
-            case 'today_invoice':
-                $query->whereDate('created_at', Carbon::today());
-                break;
-            case 'all_followup':
-                $query->whereHas('Followup', function ($q) {
-                    $q->whereNotIn('reason', ['Work with other company', 'Wrong Information', 'Not interested']);
-                });
-                break;
-            case 'today_created_followup':
-                $query->whereHas('Followup', function ($q) {
-                    $q->where(function ($sub) {
-                        $sub->WhereDate('created_at', now()->toDateString());
+                    break;
+                case 'convert_leads':
+                    $query->where('status', 1);
+                    break;
+                case 'today_fresh_lead':
+                    $query->whereDate('created_at', Carbon::today())
+                        ->whereDoesntHave('Followup', function ($q) {
+                            $q->whereNotNull('lead_id');
+                        });
+                    break;
+                case 'today_invoice':
+                    $query->whereDate('created_at', Carbon::today());
+                    break;
+                case 'all_followup':
+                    $query->whereHas('Followup', function ($q) {
+                        $q->whereNotIn('reason', ['Work with other company', 'Wrong Information', 'Not interested']);
                     });
-                });
-                break;
-            case 'today_complated_followup':
-                $query->whereHas('Followup', function ($q) {
-                    $q->where(function ($sub) {
-                        $sub->whereDate('created_at', now()->toDateString())
-                            ->where('is_completed', 1);
+                    break;
+                case 'today_created_followup':
+                    $query->whereHas('Followup', function ($q) {
+                        $q->where(function ($sub) {
+                            $sub->WhereDate('created_at', now()->toDateString());
+                        });
                     });
-                });
-                break;
-            case 'today_pending_followup':
-                $query->whereHas('Followup', function ($q) {
-                    $q->where(function ($sub) {
-                        $sub->whereDate('next_date', now()->toDateString())
-                            ->whereNUll('is_completed');
+                    break;
+                case 'today_complated_followup':
+                    $query->whereHas('Followup', function ($q) {
+                        $q->where(function ($sub) {
+                            $sub->whereDate('created_at', now()->toDateString())
+                                ->where('is_completed', 1);
+                        });
                     });
-                });
-                break;
-            case 'today_followup':
-                $query->whereHas('Followup', function ($q) {
-                    $q->where(function ($sub) {
-                        $sub->WhereDate('next_date', now()->toDateString());
+                    break;
+                case 'today_pending_followup':
+                    $query->whereHas('Followup', function ($q) {
+                        $q->where(function ($sub) {
+                            $sub->whereDate('next_date', now()->toDateString())
+                                ->whereNUll('is_completed');
+                        });
                     });
-                });
-                break;
-            case 'yesterday_followup':
-                $query->whereHas('Followup', function ($q) {
-                    $q->where(function ($sub) {
-                        $sub->whereDate('created_at', now()->subDay()->toDateString())
-                            ->orWhereDate('next_date', now()->subDay()->toDateString());
+                    break;
+                case 'today_followup':
+                    $query->whereHas('Followup', function ($q) {
+                        $q->where(function ($sub) {
+                            $sub->WhereDate('next_date', now()->toDateString());
+                        });
                     });
-                });
-                break;
-            case 'last_7_days_followup':
-                $query->whereHas('Followup', function ($q) {
-                    $q->where(function ($sub) {
-                        $sub->whereBetween('next_date', [now()->subDays(6)->startOfDay(), now()->endOfDay()])
-                            ->orWhereBetween('created_at', [now()->subDays(6)->startOfDay(), now()->endOfDay()]);
+                    break;
+                case 'yesterday_followup':
+                    $query->whereHas('Followup', function ($q) {
+                        $q->where(function ($sub) {
+                            $sub->whereDate('created_at', now()->subDay()->toDateString())
+                                ->orWhereDate('next_date', now()->subDay()->toDateString());
+                        });
                     });
-                });
-                break;
-            case 'this_month_followup':
-                $query->whereHas('Followup', function ($q) {
-                    $q->where(function ($sub) {
-                        $sub->whereBetween('next_date', [now()->startOfMonth(), now()->endOfMonth()])
-                            ->orWhereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()]);
+                    break;
+                case 'last_7_days_followup':
+                    $query->whereHas('Followup', function ($q) {
+                        $q->where(function ($sub) {
+                            $sub->whereBetween('next_date', [now()->subDays(6)->startOfDay(), now()->endOfDay()])
+                                ->orWhereBetween('created_at', [now()->subDays(6)->startOfDay(), now()->endOfDay()]);
+                        });
                     });
-                });
-                break;
-            case 'followup_pending':
-                $query->whereHas('Followup', function ($q) {
-                    $q->where('is_completed', '!=', 1);
-                });
-                break;
-            case 'followup_completed':
-                $query->whereHas('Followup', function ($q) {
-                    $q->where('is_completed', 1);
-                });
-                break;
-            case 'followup_other':
-                $query->whereHas('Followup', function ($q) {
-                    $q->where('reason', "Other");
-                });
-                break;
-            case 'followup_interested':
-                $query->whereHas('lastFollowup', function ($q) {
-                    $q->where('reason', "Interested");
-                });
-                break;
-            case 'today_converted':
-                $query->whereHas('Followup', function ($q) {
-                    $q->whereDate('next_date', now()->toDateString());
-                });
-                break;
-            case 'today_reminder':
-                $query->whereHas('Payment', function ($q) {
-                    $q->whereDate('next_billing_date', now()->toDateString());
-                });
-                break;
-            case 'today_billing':
-                $query->whereDate('billing_date', Carbon::today());
-                break;
-            case 'cold_clients':
-                $query->whereHas('Followup', function ($q) {
-                    $q->where('reason', 'call back later')
-                        ->orWhere('reason', 'Not pickup');
-                });
-                break;
-            case 'today_cold_clients':
-                $query->whereHas('Followup', function ($q) {
-                    $q->where('reason', 'call back later')
-                        ->orWhere('reason', 'Not pickup')
-                        ->whereDate('next_date', Carbon::today());
-                });
-                break;
-            case 'rejects':
-                $query->whereHas('Followup', function ($q) {
-                    $q->where('reason', 'Wrong Information')
-                        ->orwhere('reason', 'Work with other company')
-                        ->orwhere('reason', 'Not interested');
-                });
-                break;
-            case 'today_reject':
-                $query->whereHas('Followup', function ($q) {
-                    $q->where('reason', 'Wrong Information')
-                        ->orwhere('reason', 'Work with other company')
-                        ->orwhere('reason', 'Not interested')
-                        ->whereDate('created_at', Carbon::today());
-                });
-                break;
-            case 'reject_wrong_info':
-                $query->whereHas('Followup', function ($q) {
-                    $q->where('reason', 'Wrong Information');
-                });
-                break;
-            case 'reject_other_company':
-                $query->whereHas('Followup', function ($q) {
-                    $q->where('reason', 'Work with other company');
-                });
-                break;
-            case 'reject_not_intersted':
-                $query->whereHas('Followup', function ($q) {
-                    $q->where('reason', 'Not interested');
-                });
-                break;
-            case 'followup_payment_today':
-                $query->whereHas('Followup', function ($q) {
-                    $q->where('reason', 'Payment Tomorrow');
-                });
-                break;
-            case 'delay':
-                $query->whereHas('Followup', function ($q) {
-                    $q->where('delay', 1)
-                        ->orWhere('is_completed', '!=', 1);
-                });
-                break;
-            
-           case 'today_delay':
-                $query->whereHas('Followup', function ($q) {
-                    $q->where('is_completed', '!=', 1)
-                      ->whereDate('next_date', Carbon::today());
-                });
-                break;
+                    break;
+                case 'this_month_followup':
+                    $query->whereHas('Followup', function ($q) {
+                        $q->where(function ($sub) {
+                            $sub->whereBetween('next_date', [now()->startOfMonth(), now()->endOfMonth()])
+                                ->orWhereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()]);
+                        });
+                    });
+                    break;
+                case 'followup_pending':
+                    $query->whereHas('Followup', function ($q) {
+                        $q->where('is_completed', '!=', 1);
+                    });
+                    break;
+                case 'followup_completed':
+                    $query->whereHas('Followup', function ($q) {
+                        $q->where('is_completed', 1);
+                    });
+                    break;
+                case 'followup_other':
+                    $query->whereHas('Followup', function ($q) {
+                        $q->where('reason', "Other");
+                    });
+                    break;
+                case 'followup_interested':
+                    $query->whereHas('lastFollowup', function ($q) {
+                        $q->where('reason', "Interested");
+                    });
+                    break;
+                case 'today_converted':
+                    $query->whereHas('Followup', function ($q) {
+                        $q->whereDate('next_date', now()->toDateString());
+                    });
+                    break;
+                case 'today_reminder':
+                    $query->whereHas('Payment', function ($q) {
+                        $q->whereDate('next_billing_date', now()->toDateString());
+                    });
+                    break;
+                case 'today_billing':
+                    $query->whereDate('billing_date', Carbon::today());
+                    break;
+                case 'cold_clients':
+                    $query->whereHas('Followup', function ($q) {
+                        $q->where('reason', 'call back later')
+                            ->orWhere('reason', 'Not pickup');
+                    });
+                    break;
+                case 'today_cold_clients':
+                    $query->whereHas('Followup', function ($q) {
+                        $q->where('reason', 'call back later')
+                            ->orWhere('reason', 'Not pickup')
+                            ->whereDate('next_date', Carbon::today());
+                    });
+                    break;
+                case 'rejects':
+                    $query->whereHas('Followup', function ($q) {
+                        $q->where('reason', 'Wrong Information')
+                            ->orwhere('reason', 'Work with other company')
+                            ->orwhere('reason', 'Not interested');
+                    });
+                    break;
+                case 'today_reject':
+                    $query->whereHas('Followup', function ($q) {
+                        $q->where('reason', 'Wrong Information')
+                            ->orwhere('reason', 'Work with other company')
+                            ->orwhere('reason', 'Not interested')
+                            ->whereDate('created_at', Carbon::today());
+                    });
+                    break;
+                case 'reject_wrong_info':
+                    $query->whereHas('Followup', function ($q) {
+                        $q->where('reason', 'Wrong Information');
+                    });
+                    break;
+                case 'reject_other_company':
+                    $query->whereHas('Followup', function ($q) {
+                        $q->where('reason', 'Work with other company');
+                    });
+                    break;
+                case 'reject_not_intersted':
+                    $query->whereHas('Followup', function ($q) {
+                        $q->where('reason', 'Not interested');
+                    });
+                    break;
+                case 'followup_payment_today':
+                    $query->whereHas('Followup', function ($q) {
+                        $q->where('reason', 'Payment Tomorrow');
+                    });
+                    break;
+                case 'delay':
+                    $query->whereHas('Followup', function ($q) {
+                        $q->where('delay', 1)
+                            ->orWhere('is_completed', '!=', 1);
+                    });
+                    break;
 
-            // 3. Specific Day Delays (Checking exact dates)
-            case 'delay_1_days':
-                $query->whereHas('Followup', function ($q) {
-                    $q->where('is_completed', '!=', 1)
-                      ->whereDate('next_date', Carbon::today()->subDays(1)); // Exactly Yesterday
-                });
-                break;
+                case 'today_delay':
+                    $query->whereHas('Followup', function ($q) {
+                        $q->where('is_completed', '!=', 1)
+                            ->whereDate('next_date', Carbon::today());
+                    });
+                    break;
 
-            case 'delay_2_days':
-                $query->whereHas('Followup', function ($q) {
-                    $q->where('is_completed', '!=', 1)
-                      ->whereDate('next_date', Carbon::today()->subDays(2)); // Exactly 2 Days Ago
-                });
-                break;
+                // 3. Specific Day Delays (Checking exact dates)
+                case 'delay_1_days':
+                    $query->whereHas('Followup', function ($q) {
+                        $q->where('is_completed', '!=', 0)
+                            ->whereDate('next_date', Carbon::today()->subDays(1)); // Exactly Yesterday
+                    });
+                    break;
 
-            case 'delay_3_days':
-                $query->whereHas('Followup', function ($q) {
-                    $q->where('is_completed', '!=', 1)
-                      ->whereDate('next_date', Carbon::today()->subDays(3)); // Exactly 3 Days Ago
-                });
-                break;
+                case 'delay_2_days':
+                    $query->whereHas('Followup', function ($q) {
+                        $q->where('is_completed', '!=', 0)
+                            ->whereDate('next_date', Carbon::today()->subDays(2)); // Exactly 2 Days Ago
+                    });
+                    break;
 
-            case 'delay_4_days':
-                $query->whereHas('Followup', function ($q) {
-                     $q->where('is_completed', '!=', 1)
-                      ->whereDate('next_date', '<=', Carbon::today()->subDays(5)); // 5 Days Ago OR OLDER
-                });
-                break;
+                case 'delay_3_days':
+                    $query->whereHas('Followup', function ($q) {
+                        $q->where('is_completed', '!=', 0)
+                            ->whereDate('next_date', Carbon::today()->subDays(3)); // Exactly 3 Days Ago
+                    });
+                    break;
 
-            // 4. Long Term Delays (5 days or MORE)
-            case 'delay_5+_days+':
-                $query->whereHas('Followup', function ($q) {
-                    $q->where('is_completed', '!=', 1)
-                      ->whereDate('next_date', '<=', Carbon::today()->subDays(5)); // 5 Days Ago OR OLDER
-                });
-                break;
-            
-            default:
-                $query->whereHas('Followup', function ($q) {
-                    $q->whereNotIn('reason', ['Wrong Information', 'Not interested', 'Work with other company']);
-                });
-                break;
+                case 'delay_4_days':
+                    $query->whereHas('Followup', function ($q) {
+                        $q->where('is_completed', '!=', 0)
+                            ->whereDate('next_date', '<=', Carbon::today()->subDays(5)); // 5 Days Ago OR OLDER
+                    });
+                    break;
+
+                // 4. Long Term Delays (5 days or MORE)
+                case 'delay_5+_days+':
+                    $query->whereHas('Followup', function ($q) {
+                        $q->where('is_completed', '!=', 0)
+                            ->whereDate('next_date', '<=', Carbon::today()->subDays(5)); // 5 Days Ago OR OLDER
+                    });
+                    break;
+
+                default:
+                    $query->whereHas('Followup', function ($q) {
+                        $q->whereNotIn('reason', ['Wrong Information', 'Not interested', 'Work with other company']);
+                    });
+                    break;
+            }
         }
     }
-}
 
     private function initializeLeadCounts()
     {
@@ -756,12 +786,12 @@ HTML;
         ];
     }
 
-   private function handleRoleBasedLogic($user, $query)
+    private function handleRoleBasedLogic($user, $query)
     {
         $data = [];
         if ($user && $user->hasRole(['BDE', 'Business Development Intern'])) {
             $userId = $user->id;
-            
+
             // --- EXISTING COUNTS ---
             $data['total_leads'] = Lead::where(function ($q) use ($userId) {
                 $q->where('user_id', $userId)
@@ -978,10 +1008,10 @@ HTML;
                     $query->where('assigned_by', auth()->user()->id);
                 })->distinct('lead_id')->count();
         } else {
-            
+
             // --- ADDED: HOT CLIENTS COUNTS (ADMIN) ---
             $data['hot_client'] = Lead::where('lead_status', 1)->count();
-            
+
             $data['today_hot_client'] = Lead::where('lead_status', 1)
                 ->whereHas('Followup', function ($q) {
                     $q->whereDate('next_date', Carbon::today());
@@ -2226,28 +2256,25 @@ HTML;
     {
         $validator = Validator::make($request->all(), [
             'proposal_user'  => 'required|numeric',
-            'sendbywhatshapp'=> 'required_without_all:sendbyemail',
+            'sendbywhatshapp' => 'required_without_all:sendbyemail',
             'sendbyemail'    => 'required_without_all:sendbywhatshapp',
             'proposal_type'  => 'required|numeric',
         ], [
             'required_without_all' => 'Please select at least one option: Mail or WhatsApp.',
         ]);
 
-        if ($validator->fails())
-        {
+        if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()]);
         }
 
         try {
             $lead = Lead::findOrFail($request->proposal_user);
 
-            if ($lead)
-            {
+            if ($lead) {
                 $name  = $lead->name;
                 $phone = $lead->phone;
 
-                if (!str_starts_with($phone, '+91'))
-                {
+                if (!str_starts_with($phone, '+91')) {
                     $phone = explode('-', $phone);
                     $phone = '91' . $phone['1'];
                 }
@@ -2255,8 +2282,7 @@ HTML;
                 // dd($phone);
                 $category = Category::findorFail($lead->client_category);
 
-                if ($category)
-                {
+                if ($category) {
                     $raw_message = $category->whatshapp_message;
 
                     // Convert <li> to bullet or numbered format placeholder (we handle ol vs ul below)
@@ -2294,8 +2320,7 @@ HTML;
                     $whatshapp_message = "Hello Sir/Ma'am,\nGreetings from Adxventure.\n" . trim($formatted_message) . "\nThank you,\nAdxventure\n+91-9149214580\nhttps://adxventure.com/";
 
                     // dd($phone);
-                    if ($request->proposal_type == 1)
-                    {
+                    if ($request->proposal_type == 1) {
                         //send by whatshapp
                         if ($request->has('sendbywhatshapp')) {
                             $api            = auth()->user()->api;
@@ -2306,19 +2331,16 @@ HTML;
                                 'file'     => asset($category->image),
                                 'text'     => $whatshapp_message,
                                 'apikey'   => $apiKey,
-                                'recipient'=> $phone,
+                                'recipient' => $phone,
                             ]);
 
-                            if (!$response->successful())
-                            {
+                            if (!$response->successful()) {
                                 return response()->json(['error' => 'Failed to send message via WhatsApp.']);
                             }
                         }
 
                         return response()->json(['success' => 'Message sent successfully.']);
-                    }
-                    elseif ($request->proposal_type == 2)
-                    {
+                    } elseif ($request->proposal_type == 2) {
                         //send by whatshapp
                         if ($request->has('sendbywhatshapp')) {
                             $api = auth()->user()->api;
@@ -2326,8 +2348,8 @@ HTML;
                             $whatsappApiUrl = $api->url;
 
                             $response = Http::get($whatsappApiUrl, [
-                                'recipient'=> $phone,
-                                'apikey'=> $apiKey,
+                                'recipient' => $phone,
+                                'apikey' => $apiKey,
                                 'text'  => $whatshapp_message,
                                 'file'  => asset($category->pdf),
                             ]);
@@ -2337,8 +2359,6 @@ HTML;
                             }
                         }
                         return response()->json(['success' => 'Message sent successfully.']);
-
-
                     }
                 }
 
