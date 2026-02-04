@@ -1,34 +1,40 @@
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
-    <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <meta name="csrf-token" content="{{ csrf_token() }}">
-        <title>@yield('title')</title>
-        <link rel="stylesheet" href="{{ asset('assets/vendor/bootstrap/css/bootstrap.min.css') }}" />
-        <link rel="stylesheet" href="{{ asset('assets/vendor/bootstrap-icons/bootstrap-icons.css') }}" />
-        <link rel="stylesheet" href="{{ asset('assets/vendor/boxicons/css/boxicons.min.css') }}" />
-        <link rel="stylesheet" href="{{ asset('assets/css/style.css') }}" />
-        <link href="{{ asset('assets/vendor/toastr/toastr.min.css') }}" rel="stylesheet">
-        <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/css/bootstrap-datepicker.min.css">
-        <script src="{{ asset('assets/vendor/jquery/jquery.min.js') }}"></script>
-        <script src="{{ asset('assets/vendor/toastr/toastr.min.js') }}"></script>
-        <x-admin.style></x-admin.style>
-        
-        @yield('css')
-    </head>
-        <x-admin.header></x-admin.header>
-        <x-admin.sidebar></x-admin.sidebar>
 
-        <main id="main" class="main">
-            {{ $slot }}
-        </main>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>@yield('title')</title>
+    <link rel="stylesheet" href="{{ asset('assets/vendor/bootstrap/css/bootstrap.min.css') }}" />
+    <link rel="stylesheet" href="{{ asset('assets/vendor/bootstrap-icons/bootstrap-icons.css') }}" />
+    <link rel="stylesheet" href="{{ asset('assets/vendor/boxicons/css/boxicons.min.css') }}" />
+    <link rel="stylesheet" href="{{ asset('assets/css/style.css') }}" />
+    <link href="{{ asset('assets/vendor/toastr/toastr.min.css') }}" rel="stylesheet">
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/css/bootstrap-datepicker.min.css">
+    <script src="{{ asset('assets/vendor/jquery/jquery.min.js') }}"></script>
+    <script src="{{ asset('assets/vendor/toastr/toastr.min.js') }}"></script>
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('favicon_io/apple-touch-icon.png') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('favicon_io/favicon-32x32.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('favicon_io/favicon-16x16.png') }}">
+    <link rel="manifest" href="{{ asset('favicon_io/site.webmanifest') }}">
+    <x-admin.style></x-admin.style>
 
-        <x-admin.footer></x-admin.footer>
-        <x-admin.script></x-admin.script>
-        <script>
-            const settingsToggle = document.getElementById('settingsToggle');
+    @yield('css')
+</head>
+<x-admin.header></x-admin.header>
+<x-admin.sidebar></x-admin.sidebar>
+
+<main id="main" class="main">
+    {{ $slot }}
+</main>
+
+<x-admin.footer></x-admin.footer>
+<x-admin.script></x-admin.script>
+<script>
+    const settingsToggle = document.getElementById('settingsToggle');
             const settingsSidebar = document.getElementById('settingsSidebar');
             const settingsOverlay = document.getElementById('settingsOverlay');
             const settingsClose = document.getElementById('settingsClose');
@@ -45,8 +51,9 @@
 
             settingsClose.addEventListener('click', closeSettings);
             settingsOverlay.addEventListener('click', closeSettings);
-        </script>
+</script>
 
-        @yield('script')
-    </body>
+@yield('script')
+</body>
+
 </html>

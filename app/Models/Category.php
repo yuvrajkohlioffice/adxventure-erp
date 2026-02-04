@@ -23,6 +23,6 @@ class Category extends Model
     }
 
     public function lead(){
-        return $this->hasMany(lead::class, 'client_category', 'category_id');
+        return $this->hasMany(Lead::class, 'client_category', 'category_id');
     }
 }

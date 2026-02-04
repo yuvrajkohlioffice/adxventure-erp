@@ -514,9 +514,13 @@ HTML;
         return $query;
     }
 
-    private function applyButtonFilter($query, $type, Request $request)
+   private function applyButtonFilter($query, $type, Request $request)
     {
-        if ($type) {
+        if (!$type) return;
+
+    $userId = auth()->id();
+    $today = Carbon::today();
+     {
             switch ($type) {
                 case 'all_lead':
                     // No additional filtering needed
@@ -575,13 +579,18 @@ HTML;
                     });
                     break;
                 case 'today_pending_followup':
-                    $query->whereHas('Followup', function ($q) {
-                        $q->where(function ($sub) {
-                            $sub->whereDate('next_date', now()->toDateString())
-                                ->whereNUll('is_completed');
-                        });
-                    });
-                    break;
+            $query->whereHas('Followup', function ($q) use ($userId, $today) {
+                $q->whereDate('next_date', Carbon::today())
+          // Only apply user_id filter if the user is NOT an admin (Role 1)
+          ->when(auth()->user()->role_id != 1, function ($subQ) use ($userId) {
+              return $subQ->where('user_id', $userId);
+          })
+          ->where(function ($sub) {
+              $sub->whereNull('is_completed')
+                  ->orWhere('is_completed', '!=', 1);
+          });
+            });
+            break;
                 case 'today_followup':
                     $query->whereHas('Followup', function ($q) {
                         $q->where(function ($sub) {
@@ -902,10 +911,16 @@ HTML;
                 ->where('is_completed', 1)
                 ->where('user_id', $userId)
                 ->where('next_date', Carbon::today())->count();
-            $data['today_pending_followup'] =  Followup::whereHas('lead')
-                ->where('is_completed', '!=', 1)
-                ->where('user_id', $userId)
-                ->whereDate('next_date', Carbon::today())->count();
+            $data['today_pending_followup'] = Followup::whereHas('lead')
+    ->when(auth()->user()->role_id != 1, function ($query) use ($userId) {
+        return $query->where('user_id', $userId);
+    })
+    ->where(function ($query) {
+        $query->whereNull('is_completed')
+              ->orWhere('is_completed', '!=', 1);
+    })
+    ->whereDate('next_date', Carbon::today())
+    ->count();
 
 
             $data['total_amount'] = 0;
@@ -1044,7 +1059,13 @@ HTML;
             $data['followup_today'] = $data['today_leads'] + Followup::whereNotNull('lead_id')->whereDate('next_date', Carbon::today())->count();
 
             $data['today_complated_followup'] =  Followup::whereHas('lead')->where('is_completed', 1)->where('next_date', Carbon::today())->count();
-            $data['today_pending_followup'] =  Followup::whereHas('lead')->whereNUll('is_completed')->whereDate('next_date', Carbon::today())->count();
+            $data['today_pending_followup'] = Followup::whereHas('lead')
+    ->where(function ($query) {
+        $query->whereNull('is_completed')
+              ->orWhere('is_completed', '!=', 1);
+    })
+    ->whereDate('next_date', Carbon::today())
+    ->count();
             $data['total_amount'] = TotalAmount::whereIn('lead_id', $query->pluck('id'))
                 ->whereDate('created_at', Carbon::today())
                 ->sum('total_amount');
