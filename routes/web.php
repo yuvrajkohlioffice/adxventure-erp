@@ -35,6 +35,7 @@ use App\Http\Controllers\{
     CampaignsController
 };
 use App\Http\Controllers\settings\{ApiSettingsController};
+use App\Http\Controllers\Auth\EmailVerificationPromptController;
 use App\Models\User;
 use App\Models\{Role, lead, Api};
 use Spatie\Permission\Models\Permission;
@@ -56,15 +57,23 @@ require __DIR__ . '/auth.php';
 require_once app_path('Helpers/helpers.php');
 
 Route::get('/clear-cache', function () {
+    // 1. Clear everything first
     Artisan::call('optimize:clear');
-    Artisan::call('cache:clear');
-    Artisan::call('config:clear');
-    Artisan::call('route:clear');
-    Artisan::call('view:clear');
-    dd('chalo ho gya!!');
+    
+    // 2. Run the route list command
+    Artisan::call('route:list', ['--path' => 'verify-email']);
+    
+    // 3. Get the output (the text response)
+    $routeOutput = Artisan::output();
+
+    // 4. Show the output and the success message
+    echo "<pre>" . $routeOutput . "</pre>";
+    dd('Chalo ho gya!! Cache cleared and route checked.');
 });
 
-
+Route::get('verify-email', EmailVerificationPromptController::class)
+    ->middleware('auth')
+    ->name('verification.notice');
 
 Route::get('demo-email', function () {
     // return view('admin.email.mail');
@@ -74,7 +83,7 @@ Route::get('demo-email', function () {
     $message = "Test message";
     $footer = "test footer";
     $to = [
-        'manjeetchand01@gmail.com',
+        'yuvrajkohli8090ylt@gmail.com',
     ];
     $cc = "work@adxventure.com";
     $recipients = implode(',', $to);
@@ -138,6 +147,7 @@ Route::get('/send-test-mail', function () {
 
     // HR recipients
     $to = [
+        'yuvrajkohli8090ylt@gmail.com',
         'robintomr@icloud.com',
         'digitarttech@gmail.com',
         'robntomr@gmail.com',
