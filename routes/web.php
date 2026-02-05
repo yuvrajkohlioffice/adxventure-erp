@@ -42,6 +42,10 @@ use Spatie\Permission\Models\Permission;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\TestMail;
+use App\Services\Core;
+use Illuminate\Support\Facades\Artisan;
+
+
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -56,69 +60,68 @@ use App\Mail\TestMail;
 require __DIR__ . '/auth.php';
 require_once app_path('Helpers/helpers.php');
 
-Route::get('/clear-cache', function () {
-    // 1. Clear everything first
-    Artisan::call('optimize:clear');
-    
-    // 2. Run the route list command
-    Artisan::call('route:list', ['--path' => 'verify-email']);
-    
-    // 3. Get the output (the text response)
-    $routeOutput = Artisan::output();
 
-    // 4. Show the output and the success message
-    echo "<pre>" . $routeOutput . "</pre>";
-    dd('Chalo ho gya!! Cache cleared and route checked.');
+Route::get('/clear-cache', function () {
+    $output = [];
+
+    try {
+        // 1. Clear everything using the core optimize command
+        Artisan::call('optimize:clear');
+        $output[] = "Step 1: " . Artisan::output();
+
+        // 2. Clear individual caches just to be safe
+        Artisan::call('config:clear');
+        $output[] = "Step 2: Config cache cleared.";
+
+        Artisan::call('cache:clear');
+        $output[] = "Step 3: Application cache cleared.";
+
+        Artisan::call('view:clear');
+        $output[] = "Step 4: Compiled views cleared.";
+        
+        Artisan::call('route:clear');
+        $output[] = "Step 5: Route cache cleared.";
+
+        // 3. Optional: Try to run dump-autoload (Requires shell_exec enabled on server)
+        if (function_exists('shell_exec')) {
+            $composerOutput = shell_exec('composer dump-autoload 2>&1');
+            $output[] = "Step 6 (Composer): " . $composerOutput;
+        } else {
+            $output[] = "Step 6: shell_exec is disabled. Please run 'composer dump-autoload' in terminal.";
+        }
+
+        // Professional Output
+        echo "<h1>🚀 TMS System Maintenance</h1>";
+        echo "<pre style='background:#f4f4f4; padding:20px; border-left:5px solid #28a745;'>" . implode("\n", $output) . "</pre>";
+        echo "<br><b style='color:green;'>Chalo ho gya mere bhai!!</b> System is now fresh.";
+        
+    } catch (\Exception $e) {
+        return "Oops! Kuch error aa gaya: " . $e->getMessage();
+    }
 });
 
 Route::get('verify-email', EmailVerificationPromptController::class)
     ->middleware('auth')
     ->name('verification.notice');
 
+
+
 Route::get('demo-email', function () {
-    // return view('admin.email.mail');
-
-    $subject = "test subject";
-    $header = "test header";
-    $message = "Test message";
-    $footer = "test footer";
-    $to = [
+    $result = Core::sendMail(
         'yuvrajkohli8090ylt@gmail.com',
-    ];
-    $cc = "work@adxventure.com";
-    $recipients = implode(',', $to);
-    try {
-        // Sender info
-        $fromName  = 'TMS - Adxventure';
-        $fromEmail = 'info@adxventure.com';
+        'Test Subject',
+        'Welcome to TMS',
+        'This is the main message body.',
+        'Adxventure ERP Team',
+        'work@adxventure.com'
+    );
 
-        // Render Blade email template
-        // In your mail.blade.php use {!! $message !!} instead of {{ $message }}
-        $html = view('admin.email.mail', [
-            'header'  => $header,
-            'message' => $message,
-            'footer' => $footer,
-        ])->render();
-
-        // Headers
-        $headers  = "MIME-Version: 1.0\r\n";
-        $headers .= "Content-type: text/html; charset=UTF-8\r\n";
-        $headers .= "From: $fromName <$fromEmail>\r\n";
-        $headers .= "Reply-To: $fromEmail\r\n";
-        $headers .= "X-Mailer: PHP/" . phpversion();
-        $headers .= "Cc: $cc\r\n";
-
-        // Send
-        if (mail($recipients, $subject, $html, $headers)) {
-            return true;
-        } else {
-            return false;
-        }
-    } catch (\Exception $e) {
-        return $e->getMessage();
+    if ($result === true) {
+        return "Email Sent Successfully via Core Service!";
+    } else {
+        return "Error: " . $result;
     }
 });
-
 
 Route::get('/send-test-mail', function () {
     $subject = "Web Dev Testing in Eve – ";

@@ -48,9 +48,9 @@
             </center>
         </div>
         <h2>{!! $header !!}</h2>
+       
         <div class="content">
-            {!! $message !!}
-        </div>
+    {!! $body !!}  </div>
         <div class="footer">
           @if(isset($footer))
             {!! $footer !!}
