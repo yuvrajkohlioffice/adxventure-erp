@@ -669,32 +669,37 @@ HTML;
                     });
                     break;
                 case 'rejects':
-                    $query->whereHas('Followup', function ($q) {
-                        $q->where('reason', 'Wrong Information')
-                            ->orwhere('reason', 'Work with other company')
-                            ->orwhere('reason', 'Not interested');
+                    // Change 'Followup' to 'lastFollowup'
+                    $query->whereHas('lastFollowup', function ($q) {
+                        $q->whereIn('reason', ['Wrong Information', 'Work with other company', 'Not interested']);
                     });
                     break;
+
                 case 'today_reject':
-                    $query->whereHas('Followup', function ($q) {
-                        $q->where('reason', 'Wrong Information')
-                            ->orwhere('reason', 'Work with other company')
-                            ->orwhere('reason', 'Not interested')
+                     // Change 'Followup' to 'lastFollowup' to ensure it was the LAST action performed today
+                    $query->whereHas('lastFollowup', function ($q) {
+                        $q->whereIn('reason', ['Wrong Information', 'Work with other company', 'Not interested'])
                             ->whereDate('created_at', Carbon::today());
                     });
                     break;
+
                 case 'reject_wrong_info':
-                    $query->whereHas('Followup', function ($q) {
+                    // Change 'Followup' to 'lastFollowup'
+                    $query->whereHas('lastFollowup', function ($q) {
                         $q->where('reason', 'Wrong Information');
                     });
                     break;
+
                 case 'reject_other_company':
-                    $query->whereHas('Followup', function ($q) {
+                    // Change 'Followup' to 'lastFollowup'
+                    $query->whereHas('lastFollowup', function ($q) {
                         $q->where('reason', 'Work with other company');
                     });
                     break;
+
                 case 'reject_not_intersted':
-                    $query->whereHas('Followup', function ($q) {
+                    // Change 'Followup' to 'lastFollowup'
+                    $query->whereHas('lastFollowup', function ($q) {
                         $q->where('reason', 'Not interested');
                     });
                     break;
@@ -992,11 +997,11 @@ HTML;
                     $query->where('assigned_by', auth()->user()->id);
                 })->distinct('lead_id')
                 ->count();
-            $data['reject_not_intersted_count'] = FollowUp::where('reason', 'Not interested')
-                ->whereHas('lead', function ($query) {
-                    $query->where('assigned_by', auth()->user()->id);
-                })->distinct('lead_id')
-                ->count();
+            $data['reject_not_intersted_count'] = Lead::whereHas('lastFollowup', function ($q) {
+    $q->where('reason', 'Not interested');
+})->where(function ($q) use ($userId) {
+    $q->where('user_id', $userId)->orWhere('assigned_by', $userId);
+})->count();
 
             $data['cold_clients'] = Followup::where('reason', 'call back later')->orWhere('reason', 'Not pickup')
                 ->whereHas('lead', function ($query) {

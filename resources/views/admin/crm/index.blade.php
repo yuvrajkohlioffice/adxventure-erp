@@ -218,6 +218,11 @@
                                         <button class="btn btn-sm btn-outline-secondary  mx-2" style="height:10%"
                                             data-filter="convert_leads">Converted leads <span
                                                 class="badge bg-light text-dark">{{ $userRoleData['convert_leads'] ?? 0 }}</span></button>
+                                                <button class="btn btn-sm btn-outline-secondary  mx-2"
+                                        data-filter="reject_not_intersted">Not Intersted
+                                        <span
+                                                class="badge bg-light text-dark">
+                                        ({{ $userRoleData['reject_not_intersted_count'] ?? 0 }}) </span></button>
 
                                         @if (Auth::user()->hasRole(['Super-Admin', 'Admin', 'Marketing-Manager']))
                                         @endif
