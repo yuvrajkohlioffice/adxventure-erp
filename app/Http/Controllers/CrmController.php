@@ -243,46 +243,46 @@ HTML;
                 <small class='lead-city' data-id='{$lead->id}' data-city='{$city}' style='cursor:pointer'>({$city})</small>
 HTML;
             })
-   ->addColumn('followup', function ($lead) {
-    // 1. Sanitize the object
-    $lead = EncodingHelper::sanitizeUtf8($lead);
+            ->addColumn('followup', function ($lead) {
+                // 1. Sanitize the object
+                $lead = EncodingHelper::sanitizeUtf8($lead);
 
-    // 2. Cache collection to avoid multiple database hits
-    $followups = $lead->followup; 
-    $totalCount = $followups->count();
-    
-    // 3. Prepare Javascript Variables (Escaped for safety)
-    $leadName = addslashes(e($lead->name));
-    $leadPhone = addslashes(e($lead->phone));
-    
-    // 4. Build the Button
-    $countLabel = $totalCount >= 1 ? " ({$totalCount})" : "";
-    
-    // Using double quotes for the attribute to allow single quotes inside the JS function
-    $html = "<a class='btn btn-primary btn-sm followupBtn' 
+                // 2. Cache collection to avoid multiple database hits
+                $followups = $lead->followup;
+                $totalCount = $followups->count();
+
+                // 3. Prepare Javascript Variables (Escaped for safety)
+                $leadName = addslashes(e($lead->name));
+                $leadPhone = addslashes(e($lead->phone));
+
+                // 4. Build the Button
+                $countLabel = $totalCount >= 1 ? " ({$totalCount})" : "";
+
+                // Using double quotes for the attribute to allow single quotes inside the JS function
+                $html = "<a class='btn btn-primary btn-sm followupBtn' 
                 data-lead-id='{$lead->id}' 
                 onclick=\"Followup({$lead->id}, '{$leadName}', '{$leadPhone}', 1)\">
                 Follow up{$countLabel}
              </a><br>";
 
-    // 5. Handle Last Follow-up details
-    if ($totalCount >= 1) {
-        $last = $followups->last();
-        $formattedDate = $last->created_at->format('d-m-y H:i:s');
-        $reason = e($last->reason); 
+                // 5. Handle Last Follow-up details
+                if ($totalCount >= 1) {
+                    $last = $followups->last();
+                    $formattedDate = $last->created_at->format('d-m-y H:i:s');
+                    $reason = e($last->reason);
 
-        $html .= "<small class='text-muted'>(Last Follow-up: {$formattedDate})</small><br>";
-        $html .= "<small>Reason: {$reason}</small><br>";
-    }
+                    $html .= "<small class='text-muted'>(Last Follow-up: {$formattedDate})</small><br>";
+                    $html .= "<small>Reason: {$reason}</small><br>";
+                }
 
-    // 6. Handle Delayed status
-    $delayedCount = $followups->where('delay', 1)->count();
-    if ($delayedCount >= 1) {
-        $html .= "<span class='badge bg-danger' style='font-size: 0.75rem;'>Delay: {$delayedCount}</span><br>";
-    }
+                // 6. Handle Delayed status
+                $delayedCount = $followups->where('delay', 1)->count();
+                if ($delayedCount >= 1) {
+                    $html .= "<span class='badge bg-danger' style='font-size: 0.75rem;'>Delay: {$delayedCount}</span><br>";
+                }
 
-    return $html;
-})
+                return $html;
+            })
             ->addColumn('quotation', function ($lead) {
                 $buttons = <<<HTML
                 <a class="btn btn-sm btn-outline-warning" onclick="SendMessage({$lead->id})" data-bs-toggle="tooltip" title="Send Portfolio">
@@ -514,13 +514,12 @@ HTML;
         return $query;
     }
 
-   private function applyButtonFilter($query, $type, Request $request)
+    private function applyButtonFilter($query, $type, Request $request)
     {
         if (!$type) return;
 
-    $userId = auth()->id();
-    $today = Carbon::today();
-     {
+        $userId = auth()->id();
+        $today = Carbon::today(); {
             switch ($type) {
                 case 'all_lead':
                     // No additional filtering needed
@@ -579,18 +578,18 @@ HTML;
                     });
                     break;
                 case 'today_pending_followup':
-            $query->whereHas('Followup', function ($q) use ($userId, $today) {
-                $q->whereDate('next_date', Carbon::today())
-          // Only apply user_id filter if the user is NOT an admin (Role 1)
-          ->when(auth()->user()->role_id != 1, function ($subQ) use ($userId) {
-              return $subQ->where('user_id', $userId);
-          })
-          ->where(function ($sub) {
-              $sub->whereNull('is_completed')
-                  ->orWhere('is_completed', '!=', 1);
-          });
-            });
-            break;
+                    $query->whereHas('Followup', function ($q) use ($userId, $today) {
+                        $q->whereDate('next_date', Carbon::today())
+                            // Only apply user_id filter if the user is NOT an admin (Role 1)
+                            ->when(auth()->user()->role_id != 1, function ($subQ) use ($userId) {
+                                return $subQ->where('user_id', $userId);
+                            })
+                            ->where(function ($sub) {
+                                $sub->whereNull('is_completed')
+                                    ->orWhere('is_completed', '!=', 1);
+                            });
+                    });
+                    break;
                 case 'today_followup':
                     $query->whereHas('Followup', function ($q) {
                         $q->where(function ($sub) {
@@ -662,12 +661,15 @@ HTML;
                     });
                     break;
                 case 'today_cold_clients':
-                    $query->whereHas('Followup', function ($q) {
-                        $q->where('reason', 'call back later')
-                            ->orWhere('reason', 'Not pickup')
-                            ->whereDate('next_date', Carbon::today());
-                    });
-                    break;
+    $query->whereHas('Followup', function ($q) {
+        $q->where(function ($sub) {
+              $sub->where('reason', 'call back later')
+                  ->orWhere('reason', 'Not pickup');
+          })
+          ->whereDate('next_date', Carbon::today());
+    })
+    ->where('assigned_by', auth()->id());
+    break;
                 case 'rejects':
                     // Change 'Followup' to 'lastFollowup'
                     $query->whereHas('lastFollowup', function ($q) {
@@ -676,7 +678,7 @@ HTML;
                     break;
 
                 case 'today_reject':
-                     // Change 'Followup' to 'lastFollowup' to ensure it was the LAST action performed today
+                    // Change 'Followup' to 'lastFollowup' to ensure it was the LAST action performed today
                     $query->whereHas('lastFollowup', function ($q) {
                         $q->whereIn('reason', ['Wrong Information', 'Work with other company', 'Not interested'])
                             ->whereDate('created_at', Carbon::today());
@@ -917,15 +919,15 @@ HTML;
                 ->where('user_id', $userId)
                 ->where('next_date', Carbon::today())->count();
             $data['today_pending_followup'] = Followup::whereHas('lead')
-    ->when(auth()->user()->role_id != 1, function ($query) use ($userId) {
-        return $query->where('user_id', $userId);
-    })
-    ->where(function ($query) {
-        $query->whereNull('is_completed')
-              ->orWhere('is_completed', '!=', 1);
-    })
-    ->whereDate('next_date', Carbon::today())
-    ->count();
+                ->when(auth()->user()->role_id != 1, function ($query) use ($userId) {
+                    return $query->where('user_id', $userId);
+                })
+                ->where(function ($query) {
+                    $query->whereNull('is_completed')
+                        ->orWhere('is_completed', '!=', 1);
+                })
+                ->whereDate('next_date', Carbon::today())
+                ->count();
 
 
             $data['total_amount'] = 0;
@@ -998,19 +1000,25 @@ HTML;
                 })->distinct('lead_id')
                 ->count();
             $data['reject_not_intersted_count'] = Lead::whereHas('lastFollowup', function ($q) {
-    $q->where('reason', 'Not interested');
-})->where(function ($q) use ($userId) {
-    $q->where('user_id', $userId)->orWhere('assigned_by', $userId);
-})->count();
+                $q->where('reason', 'Not interested');
+            })->where(function ($q) use ($userId) {
+                $q->where('user_id', $userId)->orWhere('assigned_by', $userId);
+            })->count();
 
             $data['cold_clients'] = Followup::where('reason', 'call back later')->orWhere('reason', 'Not pickup')
                 ->whereHas('lead', function ($query) {
                     $query->where('assigned_by', auth()->user()->id);
                 })->distinct('lead_id')->count();
-            $data['today_cold_clients'] = Followup::where('reason', 'call back later')->whereDate('created_at', Carbon::today())->orWhere('reason', 'Not pickup')
-                ->whereHas('lead', function ($query) {
-                    $query->where('assigned_by', auth()->user()->id);
-                })->distinct('lead_id')->count();
+            $data['today_cold_clients'] = Followup::where(function ($q) {
+        $q->where('reason', 'call back later')
+          ->orWhere('reason', 'Not pickup');
+    })
+    ->whereDate('created_at', Carbon::today())
+    ->whereHas('lead', function ($query) {
+        $query->where('assigned_by', auth()->id());
+    })
+    ->distinct('lead_id')
+    ->count();
             $data['followupPending'] = Followup::where('is_completed', '=!', 1)
                 ->whereHas('lead', function ($query) {
                     $query->where('assigned_by', auth()->user()->id);
@@ -1046,8 +1054,8 @@ HTML;
             $data['leads'] = $query->with('countries')->orderBy('id', 'desc')->paginate(20);
             $data['today_fresh'] = Lead::where('status', '!=', 1)->where('created_at', '>=', Carbon::today())->count();
             $data['fresh_lead'] = Lead::where('status', '!=', 1)->count();
-            $data['today_proposal'] = DB::table('prposal')->whereNotNull('lead_id')->where('created_at', '>=', Carbon::today())->count();
-            $data['total_proposal'] = DB::table('prposal')->whereNotNull('lead_id')->count();
+            $data['today_proposal'] = Proposal::whereNotNull('lead_id')->where('created_at', '>=', Carbon::today())->count();
+            $data['total_proposal'] = Proposal::whereNotNull('lead_id')->count();
             $data['today_created_followup'] = Followup::whereHas('lead')->distinct('lead_id')->whereDate('created_at', Carbon::today())->count();
             $data['today_followup'] = Followup::whereHas('lead')->distinct('lead_id')->whereDate('next_date', Carbon::today())->count();
             $data['total_followup'] = Followup::whereHas('lead')->whereNotIn('reason', ['Work with other company', 'Wrong Information', 'Not interested'])->distinct('lead_id')->count();
@@ -1065,12 +1073,12 @@ HTML;
 
             $data['today_complated_followup'] =  Followup::whereHas('lead')->where('is_completed', 1)->where('next_date', Carbon::today())->count();
             $data['today_pending_followup'] = Followup::whereHas('lead')
-    ->where(function ($query) {
-        $query->whereNull('is_completed')
-              ->orWhere('is_completed', '!=', 1);
-    })
-    ->whereDate('next_date', Carbon::today())
-    ->count();
+                ->where(function ($query) {
+                    $query->whereNull('is_completed')
+                        ->orWhere('is_completed', '!=', 1);
+                })
+                ->whereDate('next_date', Carbon::today())
+                ->count();
             $data['total_amount'] = TotalAmount::whereIn('lead_id', $query->pluck('id'))
                 ->whereDate('created_at', Carbon::today())
                 ->sum('total_amount');
@@ -1110,7 +1118,16 @@ HTML;
             $data['followupPaymentToday'] = Followup::where('reason', 'Payment Tomorrow')->distinct('lead_id')->count();
             $data['total_reject'] = Followup::where('reason', 'Wrong Information')->orWhere('reason', 'Work with other company')->orWhere('reason', 'Not interested')->distinct('lead_id')->count();
             $data['cold_clients'] = Followup::where('reason', 'call back later')->orWhere('reason', 'Not pickup')->distinct('lead_id')->count();
-            $data['today_cold_clients'] = Followup::where('reason', 'call back later')->orWhere('reason', 'Not pickup')->whereDate('created_at', Carbon::today())->distinct('lead_id')->count();
+            $data['today_cold_clients'] = Followup::where(function ($q) {
+        $q->where('reason', 'call back later')
+          ->orWhere('reason', 'Not pickup');
+    })
+    ->whereDate('next_date', Carbon::today())
+    ->whereHas('lead', function ($query) {
+        $query->where('assigned_by', auth()->id());
+    })
+    ->distinct('lead_id')
+    ->count();
             $data['followupPending'] = Followup::where('is_completed', '=!', 1)->distinct('lead_id')->count();
             $data['followupCompleted'] = Followup::where('is_completed', 1)->distinct('lead_id')->count();
             $data['followupOther'] = Followup::where('reason', 'Other')->distinct('lead_id')->count();

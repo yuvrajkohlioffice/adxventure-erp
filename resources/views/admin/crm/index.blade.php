@@ -5,7 +5,8 @@
     <!-- Datatables css -->
     <link href="{{ asset('assets/vendor/datatable/css/dataTables.bootstrap5.min.css') }}" rel="stylesheet"
         type="text/css" />
-    <link href="{{ asset('assets/vendor/datatable/css/buttons.bootstrap5.min.css') }}" rel="stylesheet" type="text/css" />
+    <link href="{{ asset('assets/vendor/datatable/css/buttons.bootstrap5.min.css') }}" rel="stylesheet"
+        type="text/css" />
     <link href="{{ asset('assets/vendor/datatable/css/keyTable.bootstrap5.min.css') }}" rel="stylesheet"
         type="text/css" />
     <link href="{{ asset('assets/vendor/datatable/css/responsive.bootstrap5.min.css') }}" rel="stylesheet"
@@ -47,9 +48,9 @@
         <a style="float:right; margin-left:10px" class="btn btn-sm btn-outline-danger" href=""><i
                 class="bi bi-arrow-repeat"></i></a>
         @if (Auth::user()->hasRole(['Super-Admin', 'Admin', 'Marketing-Manager']))
-            <a style="float:right; margin-left:10px" class="btn btn-sm btn-primary" data-bs-target="#todayReportModal"
-                data-bs-toggle="modal">Today Report</a>
-            <!-- <button class="btn btn-sm btn-outline-secondary  mx-2"  style="height:10%" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasRight" aria-controls="offcanvasRight" data-filter="today_bde_report">Today BDE Report</button> -->
+        <a style="float:right; margin-left:10px" class="btn btn-sm btn-primary" data-bs-target="#todayReportModal"
+            data-bs-toggle="modal">Today Report</a>
+        <!-- <button class="btn btn-sm btn-outline-secondary  mx-2"  style="height:10%" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasRight" aria-controls="offcanvasRight" data-filter="today_bde_report">Today BDE Report</button> -->
         @endif
         <a style="float:right; margin-left:10px" class="btn btn-sm btn-primary" href="{{ route('crm.create') }}"><i
                 class="bi bi-plus-circle"></i> Add Lead</a>
@@ -73,169 +74,213 @@
         <div class="row">
             <div class="col-xxl-12 col-xl-12">
                 <div class="card">
-                    <div class="card-header">
-                        <div class="row">
-                            <input type="hidden" id="lead-type-filter" value="all_lead">
-                            <input type="hidden" id="lead-subfilter" value="">
-                            <div class="col">
-                                <select class="form-select custom-select" name="country" id="filter-country">
-                                    <option selected disabled>Select Country..</option>
-                                    <option value="">All</option>
-                                    @foreach ($countries as $country)
-                                        <option value="{{ $country->id }}">{{ $country->nicename }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="col">
-                                <select class="form-select custom-select" name="lead_status" id="filter-status">
-                                    <option selected disabled>Select status..</option>
-                                    <option value="">All</option>
-                                    <option value="1">Hot</option>
-                                    <option value="2">Warm</option>
-                                    <option value="3">Cold</option>
-                                    <option value="4">Not Interested</option>
-                                    <option value="5">Wrong Info</option>
-                                    <option value="6">Not pickup</option>
-                                    <option value="7">Converted</option>
-                                </select>
-                            </div>
-                            <div class="col">
-                                <select class="form-select custom-select" name="followup" id="filter-followup">
-                                    <option selected disabled>Search Followup..</option>
-                                    <option value="">All</option>
-                                    <option value="today">Today</option>
-                                    <option value="month">This Month</option>
-                                    <option value="this_week">This Week</option>
-                                    <option value="today_followup">Today followup</option>
-                                    <option value="today_converted">Today Converted</option>
-                                </select>
-                            </div>
-                            <div class="col">
-                                <select class="form-select custom-select" name="category" id="filter-category">
-                                    <option selected disabled>Search Category..</option>
-                                    <option value="">All</option>
-                                    @foreach ($categories as $category)
-                                        <option value="{{ $category->category_id }}"
-                                            {{ request('category') == $category->category_id ? 'selected' : '' }}>
-                                            {{ $category->name }}
-                                            ({{ $category->lead->count() }})
-                                        </option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="col">
-                                <select class="form-select custom-select" name="service" id="filter-service">
-                                    <option selected disabled>Search Service..</option>
-                                    <option value="">All</option>
-                                    @foreach ($services as $service)
-                                        <option value="{{ $service->id }}"
-                                            {{ request('service') == $service->id ? 'selected' : '' }}>
-                                            {{ $service->name }} ({{ $service->lead->count() }})</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="col">
-                                <select class="form-select custom-select " name="proposal" id="filter-proposal">
-                                    <option selected disabled>Search Proposal..</option>
-                                    <option value="">All</option>
-                                    <option value="today" {{ request('proposal') == 'today' ? 'selected' : '' }}>
-                                        Today
-                                    </option>
-                                    <option value="month" {{ request('proposal') == 'month' ? 'selected' : '' }}>This
-                                        Month</option>
-                                    <option value="year" {{ request('proposal') == 'year' ? 'selected' : '' }}>This
-                                        year
-                                    </option>
-                                </select>
-                            </div>
-                            <div class="col">
-                                <select class="form-select custom-select " name="quotation" id="filter-quotation">
-                                    <option selected disabled>Search Quotation..</option>
-                                    <option value="">All</option>
-                                    <option value="today" {{ request('proposal') == 'today' ? 'selected' : '' }}>
-                                        Today
-                                    </option>
-                                    <option value="month" {{ request('proposal') == 'month' ? 'selected' : '' }}>This
-                                        Month</option>
-                                    <option value="year" {{ request('proposal') == 'year' ? 'selected' : '' }}>This
-                                        year
-                                    </option>
-                                </select>
-                            </div>
-                            @if (Auth::user()->hasRole(['Super-Admin', 'Admin', 'Marketing-Manager']))
-                                <div class="col">
-                                    <select class="form-select custom-select " name="search_bde" id="filter-bde">
-                                        <option selected disabled>Search By Bde..</option>
-                                        <option value="">All</option>
-                                        @foreach ($bdeReports['bdeReports'] as $report)
-                                            <option value="{{ $report['id'] }}">{{ $report['name'] }}</option>
-                                        @endforeach
+                    <div class="card shadow-sm border-0 mb-4">
+                        <div class="card-body bg-light rounded">
+                            <div class="row g-2 align-items-center">
+                                {{-- Hidden Filters --}}
+                                <input type="hidden" id="lead-type-filter" value="all_lead">
+                                <input type="hidden" id="lead-subfilter" value="">
 
+                                {{-- Country Filter --}}
+                                <div class="col-12 col-md-4 col-lg-3 col-xl-2">
+                                    <select class="form-select form-select-sm shadow-sm" name="country"
+                                        id="filter-country">
+                                        <option selected disabled>Select Country</option>
+                                        <option value="">All Countries</option>
+                                        @foreach ($countries as $country)
+                                        <option value="{{ $country->id }}">{{ $country->nicename }}</option>
+                                        @endforeach
                                     </select>
                                 </div>
-                            @endif
 
-                            <div class="col">
-                                <a href="{{ url('/crm/leads') }}" class="btn btn-outline-danger"><i
-                                        class="bi bi-arrow-repeat"></i> Reset Filter</a>
+                                {{-- Status Filter --}}
+                                <div class="col-12 col-md-4 col-lg-3 col-xl-2">
+                                    <select class="form-select form-select-sm shadow-sm" name="lead_status"
+                                        id="filter-status">
+                                        <option selected disabled>Lead Status</option>
+                                        <option value="">All Statuses</option>
+                                        <option value="1">Hot</option>
+                                        <option value="2">Warm</option>
+                                        <option value="3">Cold</option>
+                                        <option value="4">Not Interested</option>
+                                        <option value="5">Wrong Info</option>
+                                        <option value="6">Not pickup</option>
+                                        <option value="7">Converted</option>
+                                    </select>
+                                </div>
+
+                                {{-- Followup Filter --}}
+                                <div class="col-12 col-md-4 col-lg-3 col-xl-2">
+                                    <select class="form-select form-select-sm shadow-sm" name="followup"
+                                        id="filter-followup">
+                                        <option selected disabled>Followup Time</option>
+                                        <option value="">All Time</option>
+                                        <option value="today">Today</option>
+                                        <option value="month">This Month</option>
+                                        <option value="this_week">This Week</option>
+                                        <option value="today_followup">Today followup</option>
+                                        <option value="today_converted">Today Converted</option>
+                                    </select>
+                                </div>
+
+                                {{-- Category Filter --}}
+                                <div class="col-12 col-md-4 col-lg-3 col-xl-2">
+                                    <select class="form-select form-select-sm shadow-sm" name="category"
+                                        id="filter-category">
+                                        <option selected disabled>Category</option>
+                                        <option value="">All Categories</option>
+                                        @foreach ($categories as $category)
+                                        <option value="{{ $category->category_id }}" {{ request('category')==$category->
+                                            category_id ? 'selected' : '' }}>
+                                            {{ $category->name }} ({{ $category->lead->count() }})
+                                        </option>
+                                        @endforeach
+                                    </select>
+                                </div>
+
+                                {{-- Service Filter --}}
+                                <div class="col-12 col-md-4 col-lg-3 col-xl-2">
+                                    <select class="form-select form-select-sm shadow-sm" name="service"
+                                        id="filter-service">
+                                        <option selected disabled>Service</option>
+                                        <option value="">All Services</option>
+                                        @foreach ($services as $service)
+                                        <option value="{{ $service->id }}" {{ request('service')==$service->id ?
+                                            'selected' : '' }}>
+                                            {{ $service->name }} ({{ $service->lead->count() }})
+                                        </option>
+                                        @endforeach
+                                    </select>
+                                </div>
+
+                                {{-- Proposal Filter --}}
+                                <div class="col-12 col-md-4 col-lg-3 col-xl-2">
+                                    <select class="form-select form-select-sm shadow-sm" name="proposal"
+                                        id="filter-proposal">
+                                        <option selected disabled>Proposal Date</option>
+                                        <option value="">All</option>
+                                        <option value="today" {{ request('proposal')=='today' ? 'selected' : '' }}>Today
+                                        </option>
+                                        <option value="month" {{ request('proposal')=='month' ? 'selected' : '' }}>This
+                                            Month</option>
+                                        <option value="year" {{ request('proposal')=='year' ? 'selected' : '' }}>This
+                                            Year</option>
+                                    </select>
+                                </div>
+
+                                {{-- Quotation Filter --}}
+                                <div class="col-12 col-md-4 col-lg-3 col-xl-2">
+                                    <select class="form-select form-select-sm shadow-sm" name="quotation"
+                                        id="filter-quotation">
+                                        <option selected disabled>Quotation Date</option>
+                                        <option value="">All</option>
+                                        <option value="today" {{ request('proposal')=='today' ? 'selected' : '' }}>Today
+                                        </option>
+                                        <option value="month" {{ request('proposal')=='month' ? 'selected' : '' }}>This
+                                            Month</option>
+                                        <option value="year" {{ request('proposal')=='year' ? 'selected' : '' }}>This
+                                            Year</option>
+                                    </select>
+                                </div>
+
+                                {{-- Admin BDE Filter --}}
+                                @if (Auth::user()->hasRole(['Super-Admin', 'Admin', 'Marketing-Manager']))
+                                <div class="col-12 col-md-4 col-lg-3 col-xl-2">
+                                    <select class="form-select form-select-sm shadow-sm" name="search_bde"
+                                        id="filter-bde">
+                                        <option selected disabled>Select BDE</option>
+                                        <option value="">All BDEs</option>
+                                        @foreach ($bdeReports['bdeReports'] as $report)
+                                        <option value="{{ $report['id'] }}">{{ $report['name'] }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                @endif
+
+                                {{-- Reset Button --}}
+                                <div class="col-12 col-md-4 col-lg-3 col-xl-2">
+                                    <a href="{{ url('/crm/leads') }}" class="btn btn-danger btn-sm w-100 shadow-sm">
+                                        <i class="bi bi-arrow-counterclockwise"></i> Reset Filters
+                                    </a>
+                                </div>
                             </div>
                         </div>
                     </div>
 
                     <div class="card-body">
-                       <div class="row mt-2 align-items-center">
-                           
-                        <div class="col-lg-9 col-md-12">
-                            <div id="filter-buttons">
-                                <div class="d-flex flex-wrap gap-2" id="today-followup-btn"> 
-                                  
-                                            <button class="btn btn-sm btn-outline-secondary  mx-2" style="height:10%"
-                                                data-filter="all_lead">All leads <span
-                                                    class="badge bg-light text-dark">{{ $userRoleData['total_leads'] ?? 0 }}</span></button>
-                                        
-                                        <button class="btn btn-sm btn-outline-info " style="height:10%"
-                                            data-filter="fresh_lead"><i class="bi bi-stars"></i> Fresh leads <span
-                                                class="badge bg-light text-dark">{{ $userRoleData['freshLead'] ?? 0 }}</span></button>
-                                        <button class="btn btn-sm btn-outline-primary  mx-2" style="height:10%"
-                                            data-filter="all_followup"><i class="bi bi-telephone-outbound"></i> Followup leads <span
-                                                class="badge bg-light text-dark">{{ $userRoleData['total_followup'] ?? 0 }}</span>
-                                        </button>
+                        <div class="row mt-2 align-items-center">
 
-                                        <button class="btn btn-sm btn-outline-danger" style="height:10%"
-                                            data-filter="delay"><i class="bi bi-alarm"></i> Delay leads<span
-                                                class="badge bg-light text-dark">{{ $userRoleData['delay'] ?? 0 }}</span></button>
+                            <div class="row mt-2">
+        <div class="col-12">
+            <div id="filter-buttons" class="mb-3">
+                <div class="d-flex flex-wrap gap-2" id="today-followup-btn">
+                    
+                    {{-- All Leads --}}
+                    <button class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1" data-filter="all_lead">
+                        All Leads 
+                        <span class="badge bg-secondary text-white">{{ $userRoleData['total_leads'] ?? 0 }}</span>
+                    </button>
 
-                                        <button class="btn btn-sm btn-outline-secondary  mx-2" style="height:10%"
-                                            data-filter="hot_client">Hot Clients <span
-                                                class="badge bg-light text-dark">{{ $userRoleData['hot_client'] ?? '0' }}</span></button>
+                    {{-- Fresh Leads --}}
+                    <button class="btn btn-outline-info btn-sm d-flex align-items-center gap-1" data-filter="fresh_lead">
+                        <i class="bi bi-stars"></i> Fresh
+                        <span class="badge bg-info text-dark">{{ $userRoleData['freshLead'] ?? 0 }}</span>
+                    </button>
 
-                                        <button class="btn btn-sm btn-outline-secondary  mx-2" style="height:10%"
-                                            data-filter="cold_clients">Cold Clients <span
-                                                class="badge bg-light text-dark">{{ $userRoleData['cold_clients'] ?? '0' }}</span></button>
-                                        <button class="btn btn-sm btn-outline-secondary  mx-2" style="height:10%"
-                                            data-filter="rejects">Rejects <span class="badge bg-light text-dark">
-                                                {{ $userRoleData['total_reject'] ?? '0' }}</span></button>
-                                        <button class="btn btn-sm btn-outline-secondary  mx-2" style="height:10%"
-                                            data-filter="convert_leads">Converted leads <span
-                                                class="badge bg-light text-dark">{{ $userRoleData['convert_leads'] ?? 0 }}</span></button>
-                                                <button class="btn btn-sm btn-outline-secondary  mx-2"
-                                        data-filter="reject_not_intersted">Not Intersted
-                                        <span
-                                                class="badge bg-light text-dark">
-                                        ({{ $userRoleData['reject_not_intersted_count'] ?? 0 }}) </span></button>
+                    {{-- Followup Leads --}}
+                    <button class="btn btn-outline-primary btn-sm d-flex align-items-center gap-1" data-filter="all_followup">
+                        <i class="bi bi-telephone-outbound"></i> Followup
+                        <span class="badge bg-primary text-white">{{ $userRoleData['total_followup'] ?? 0 }}</span>
+                    </button>
 
-                                        @if (Auth::user()->hasRole(['Super-Admin', 'Admin', 'Marketing-Manager']))
-                                        @endif
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-3">
-                                <div id="reportrange1" class="form-select"
-                                    style="cursor: pointer;width: 100%; max-width:345px;float:right; border-radius:6px;padding:3.5px 6px;">
-                                    <small style="font-weight:600;">Sort By</small> &nbsp;
-                                    <span></span> <i class="fa fa-caret-down"></i>
-                                </div>
-                            </div>
+                    {{-- Delay Leads --}}
+                    <button class="btn btn-outline-danger btn-sm d-flex align-items-center gap-1" data-filter="delay">
+                        <i class="bi bi-alarm"></i> Delay
+                        <span class="badge bg-danger text-white">{{ $userRoleData['delay'] ?? 0 }}</span>
+                    </button>
+
+                    {{-- Hot Clients --}}
+                    <button class="btn btn-outline-success btn-sm d-flex align-items-center gap-1" data-filter="hot_client">
+                        <i class="bi bi-fire"></i> Hot
+                        <span class="badge bg-success text-white">{{ $userRoleData['hot_client'] ?? 0 }}</span>
+                    </button>
+
+                    {{-- Cold Clients --}}
+                    <button class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1" data-filter="cold_clients">
+                        <i class="bi bi-snow"></i> Cold
+                        <span class="badge bg-secondary text-white">{{ $userRoleData['cold_clients'] ?? 0 }}</span>
+                    </button>
+
+                    {{-- Rejects --}}
+                    <button class="btn btn-outline-dark btn-sm d-flex align-items-center gap-1" data-filter="rejects">
+                        <i class="bi bi-x-circle"></i> Rejects
+                        <span class="badge bg-dark text-white">{{ $userRoleData['total_reject'] ?? 0 }}</span>
+                    </button>
+
+                    {{-- Converted --}}
+                    <button class="btn btn-success btn-sm d-flex align-items-center gap-1" data-filter="convert_leads">
+                        <i class="bi bi-check-circle"></i> Converted
+                        <span class="badge bg-light text-success">{{ $userRoleData['convert_leads'] ?? 0 }}</span>
+                    </button>
+
+                    {{-- Not Interested --}}
+                    <button class="btn btn-outline-warning btn-sm d-flex align-items-center gap-1" data-filter="reject_not_intersted">
+                        <i class="bi bi-slash-circle"></i> Not Interested
+                        <span class="badge bg-warning text-dark">{{ $userRoleData['reject_not_intersted_count'] ?? 0 }}</span>
+                    </button>
+
+                    {{-- Sort Dropdown (Right Aligned) --}}
+                    <div class="ms-auto">
+                        <div id="reportrange1" class="form-select form-select-sm d-flex align-items-center gap-2" style="cursor: pointer; min-width: 200px;">
+                            <i class="bi bi-calendar3"></i>
+                            <span>Sort By Date</span> 
+                            <i class="bi bi-caret-down-fill ms-auto"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
                             <div class="col-12 mt-2">
                                 <div id="sub-filter-today-fresh" class="sub-filter-section d-none">
@@ -384,14 +429,14 @@
                         <div id="datatable-buttons_wrapper" class="dataTables_wrapper dt-bootstrap5 no-footer mt-3">
                             <div class="row justify-content-end">
                                 @if (Auth::user()->hasRole(['Super-Admin', 'Admin', 'Marketing-Manager']))
-                                    <div class="col-2 mb-2">
-                                        <select class="form-select" name="lead_assigned" id="lead-assigned">
-                                            <option selected disabled>Assign lead</option>
-                                            @foreach ($bdeReports['bdeReports'] as $report)
-                                                <option value="{{ $report['id'] }}">{{ $report['name'] }}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
+                                <div class="col-2 mb-2">
+                                    <select class="form-select" name="lead_assigned" id="lead-assigned">
+                                        <option selected disabled>Assign lead</option>
+                                        @foreach ($bdeReports['bdeReports'] as $report)
+                                        <option value="{{ $report['id'] }}">{{ $report['name'] }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
                                 @endif
                                 <div class="col-12">
                                     <table id="leads-table"
@@ -423,8 +468,8 @@
     </section>
 
     <!--Follow Up  Model Start -->
-    <div class="modal fade" id="followupModel" tabindex="-1" aria-labelledby="followupModalLabel"
-        aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal fade" id="followupModel" tabindex="-1" aria-labelledby="followupModalLabel" aria-hidden="true"
+        data-bs-backdrop="static" data-bs-keyboard="false">
         <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content shadow-lg border-0">
 
@@ -447,8 +492,7 @@
                         <div class="col-lg-4">
                             <div class="card shadow-sm border-0 h-100">
                                 <div class="card-header bg-white border-bottom-0 pt-3">
-                                    <h6 class="fw-bold mb-0 text-uppercase text-secondary"
-                                        style="font-size: 0.85rem;">
+                                    <h6 class="fw-bold mb-0 text-uppercase text-secondary" style="font-size: 0.85rem;">
                                         Log Activity</h6>
                                 </div>
                                 <div class="card-body">
@@ -457,8 +501,7 @@
                                         @csrf
                                         <input type="hidden" name="lead_id" id="FollowupUser">
                                         <div class="form-group">
-                                            <input type="radio" name="reason" id="call_back"
-                                                value="call back later">
+                                            <input type="radio" name="reason" id="call_back" value="call back later">
                                             <label for="call_back">Call Back Later</label>
                                         </div>
                                         <div class="form-group">
@@ -496,8 +539,7 @@
                                             <label for="interested">Interested</label>
                                         </div>
                                         <div class="form-group">
-                                            <input type="radio" name="reason" id="wrong_info"
-                                                value="Wrong Information">
+                                            <input type="radio" name="reason" id="wrong_info" value="Wrong Information">
                                             <label for="wrong_info">Wrong Information</label>
                                         </div>
                                         <div class="form-group">
@@ -516,13 +558,11 @@
                                         <div class="row" id="followupDate">
                                             <div class="col-6" id="next_followup_date">
                                                 <label>Next Follow Up Date</label>
-                                                <input type="date" class="form-control" name="next_date"
-                                                    id="next_date">
+                                                <input type="date" class="form-control" name="next_date" id="next_date">
                                             </div>
                                             <div class="col-6" id="next_followup_time">
                                                 <label>Next Follow Up Time</label>
-                                                <input type="time" class="form-control timepicker"
-                                                    name="next_time">
+                                                <input type="time" class="form-control timepicker" name="next_time">
                                             </div>
                                         </div>
                                         <button type="submit" id="followup-submit-btn"
@@ -536,8 +576,7 @@
                             <div class="card shadow-sm border-0 h-100">
                                 <div
                                     class="card-header bg-white border-bottom-0 pt-3 d-flex justify-content-between align-items-center">
-                                    <h6 class="fw-bold mb-0 text-uppercase text-secondary"
-                                        style="font-size: 0.85rem;">
+                                    <h6 class="fw-bold mb-0 text-uppercase text-secondary" style="font-size: 0.85rem;">
                                         Interaction History</h6>
                                 </div>
                                 <div class="card-body p-0">
@@ -592,8 +631,8 @@
                             <!-- Name and Email Fields -->
                             <div class="col-md-6">
                                 <label for="name">Name</label>
-                                <input type="text" class="form-control" id="name" name="name"
-                                    placeholder="Enter name.." required>
+                                <input type="text" class="form-control" id="name" name="name" placeholder="Enter name.."
+                                    required>
                                 <small id="error-name" class="form-text error text-danger"></small>
                             </div>
                             <div class="col-md-6">
@@ -608,10 +647,9 @@
                                 <select id="country-select" name="country" class="form-select" required>
                                     <option selected disabled>Select Country..</option>
                                     @foreach ($countries as $country)
-                                        <option value="{{ $country->id }}"
-                                            data-phonecode="{{ $country->phonecode }}">
-                                            {{ $country->nicename }}
-                                        </option>
+                                    <option value="{{ $country->id }}" data-phonecode="{{ $country->phonecode }}">
+                                        {{ $country->nicename }}
+                                    </option>
                                     @endforeach
                                 </select>
                                 <small id="error-country" class="form-text error text-danger"></small>
@@ -622,7 +660,7 @@
                                 <select id="phonecode-select" name="phone_code" class="form-select" required>
                                     <option selected disabled>Select Phone Code..</option>
                                     @foreach ($countries as $country)
-                                        <option value="{{ $country->phonecode }}">{{ $country->phonecode }}</option>
+                                    <option value="{{ $country->phonecode }}">{{ $country->phonecode }}</option>
                                     @endforeach
                                 </select>
                                 <small id="error-phone_code" class="form-text error text-danger"></small>
@@ -646,7 +684,7 @@
                                 <label for="client_category">Client Category<span class="text-danger">*</span></label>
                                 <select name="client_category" class="form-control" required>
                                     @foreach ($categories as $category)
-                                        <option value="{{ $category->category_id }}">{{ $category->name }}</option>
+                                    <option value="{{ $category->category_id }}">{{ $category->name }}</option>
                                     @endforeach
                                 </select>
                                 <small id="error-client_category" class="form-text error text-danger"></small>
@@ -689,7 +727,7 @@
                                 <label for="project_category">Project Category</label>
                                 <select name="project_category[]" class="form-control select-2-multiple" multiple>
                                     @foreach ($projectCategories as $category)
-                                        <option value="{{ $category->id }}">{{ $category->name }}</option>
+                                    <option value="{{ $category->id }}">{{ $category->name }}</option>
                                     @endforeach
                                 </select>
                                 <small id="error-project_category" class="form-text error text-danger"></small>
@@ -725,11 +763,11 @@
                             <select name="assignd_user" class="form-control" id="assignd_user">
                                 <option value="">Select Employee..</option>
                                 @foreach ($users as $user)
-                                    @if ($user->roles->isNotEmpty())
-                                        <option value="{{ $user->id }}">{{ $user->name }}
-                                            ({{ $user->roles->first()->name }})
-                                        </option>
-                                    @endif
+                                @if ($user->roles->isNotEmpty())
+                                <option value="{{ $user->id }}">{{ $user->name }}
+                                    ({{ $user->roles->first()->name }})
+                                </option>
+                                @endif
                                 @endforeach
                             </select>
                         </div>
@@ -798,8 +836,7 @@
 
                             <!-- Preview PDF -->
                             <div id="pdfPreview" style="display: none;">
-                                <a id="proposalPdfLink" href="#" target="_blank"
-                                    class="btn btn-secondary">View PDF</a>
+                                <a id="proposalPdfLink" href="#" target="_blank" class="btn btn-secondary">View PDF</a>
                                 <div id="pdfMessage"></div> <!-- Display message with PDF -->
                             </div>
                         </div>
@@ -867,13 +904,13 @@
                             </div>
                             <div class="col-6 mt-3">
                                 <label>Deposit Date<span class="text-danger">*</span></label>
-                                <input type="date" name="deposit_date" id="deposit_date" class="form-control"
-                                    required value="{{ date('Y-m-d') }}">
+                                <input type="date" name="deposit_date" id="deposit_date" class="form-control" required
+                                    value="{{ date('Y-m-d') }}">
                             </div>
                             <div class="col-6 mt-3" id="">
                                 <label>Amount<span class="text-danger">*</span></label>
-                                <input type="number" name="amount" id="amount_field" class="form-control"
-                                    min="1" value="0" max="">
+                                <input type="number" name="amount" id="amount_field" class="form-control" min="1"
+                                    value="0" max="">
                             </div>
                             <div class="col-6 mt-3">
                                 <label>Payment Status<span class="text-danger">*</span></label>
@@ -898,19 +935,21 @@
                                 </div>
                                 <div class="form-group">
                                     <label>Make Remark <span class="text-danger">*</span></label>
-                                    <textarea rows="3" name="remark" class="form-control" placeholder="Type here..."></textarea>
+                                    <textarea rows="3" name="remark" class="form-control"
+                                        placeholder="Type here..."></textarea>
                                 </div>
                             </div>
                             <div class="form-group" id="delay_reason_field" style="display: none;">
                                 <label>Delay Reason <span class="text-danger">*</span></label>
-                                <textarea rows="3" name="reason" class="form-control" placeholder="Type here..."></textarea>
+                                <textarea rows="3" name="reason" class="form-control"
+                                    placeholder="Type here..."></textarea>
                             </div>
                             <div class="form-group">
                                 <button class="btn btn-success" type="submit" id="submit-payment-button">
                                     <i class="fa fa-check fa-fw"></i> submit
                                 </button>
-                                <button class="btn btn-warning generate_bill" type="submit"
-                                    id="generate-bill-button" style="display:none;" data-id="1">
+                                <button class="btn btn-warning generate_bill" type="submit" id="generate-bill-button"
+                                    style="display:none;" data-id="1">
                                     <input type="hidden" name="generate_bill" id="generate_bill">
                                     <i class="fa fa-check fa-fw"></i> Generate Bill
                                 </button>
@@ -936,53 +975,52 @@
                 <div class="modal-body">
                     <div class="row">
                         @foreach ($bdeReports['bdeReports'] as $report)
-                            <div class="col-4">
-                                <div class="card border shadow-sm p-3" style="border-radius: 12px;">
-                                    <div class="d-flex align-items-center">
-                                        <img src="{{ $report['image'] ? asset($report['image']) : asset('/user1.png') }}"
-                                            alt="user-image" class="rounded-circle border"
-                                            style="width: 80px; height: 80px; object-fit: cover;">
+                        <div class="col-4">
+                            <div class="card border shadow-sm p-3" style="border-radius: 12px;">
+                                <div class="d-flex align-items-center">
+                                    <img src="{{ $report['image'] ? asset($report['image']) : asset('/user1.png') }}"
+                                        alt="user-image" class="rounded-circle border"
+                                        style="width: 80px; height: 80px; object-fit: cover;">
 
-                                        <div class="ms-3">
-                                            <h5 class="mb-0 fw-bold">{{ $report['name'] }}</h5>
-                                            <small>{{ $report['role'] }}</small><br>
-                                            <small class="text-muted">
-                                                <!-- <i class="bi bi-telephone-fill text-danger me-1"></i>{{ $report['email'] }}<br> -->
-                                                <i
-                                                    class="bi bi-telephone-fill text-danger me-1"></i>{{ $report['phone'] }}
-                                            </small>
-                                        </div>
+                                    <div class="ms-3">
+                                        <h5 class="mb-0 fw-bold">{{ $report['name'] }}</h5>
+                                        <small>{{ $report['role'] }}</small><br>
+                                        <small class="text-muted">
+                                            <!-- <i class="bi bi-telephone-fill text-danger me-1"></i>{{ $report['email'] }}<br> -->
+                                            <i class="bi bi-telephone-fill text-danger me-1"></i>{{ $report['phone'] }}
+                                        </small>
                                     </div>
-                                    <hr>
-                                    <ul class="list-unstyled mb-0 ps-1">
-                                        <li class="d-flex justify-content-between align-items-center">
-                                            <span><i
-                                                    class="bi bi-person-lines-fill me-2 text-primary"></i><strong>Leads</strong></span>
-                                            <span>{{ $report['assigned_leads'] }}</span>
-                                        </li>
-                                        <li class="d-flex justify-content-between align-items-center">
-                                            <span><i
-                                                    class="bi bi-chat-dots-fill me-2 text-success"></i><strong>Followup</strong></span>
-                                            <span>{{ $report['followups'] }}</span>
-                                        </li>
-                                        <li class="d-flex justify-content-between align-items-center">
-                                            <span><i
-                                                    class="bi bi-file-earmark-text-fill me-2 text-warning"></i><strong>Proposal</strong></span>
-                                            <span>{{ $report['proposals'] }}</span>
-                                        </li>
-                                        <li class="d-flex justify-content-between align-items-center">
-                                            <span><i
-                                                    class="bi bi-file-earmark-check-fill me-2 text-info"></i><strong>Quotation</strong></span>
-                                            <span>{{ $report['quotation'] }}</span>
-                                        </li>
-                                        <li class="d-flex justify-content-between align-items-center">
-                                            <span><i
-                                                    class="bi bi-check2-circle me-2 text-danger"></i><strong>Converted</strong></span>
-                                            <span>{{ $report['converted'] }}</span>
-                                        </li>
-                                    </ul>
                                 </div>
+                                <hr>
+                                <ul class="list-unstyled mb-0 ps-1">
+                                    <li class="d-flex justify-content-between align-items-center">
+                                        <span><i
+                                                class="bi bi-person-lines-fill me-2 text-primary"></i><strong>Leads</strong></span>
+                                        <span>{{ $report['assigned_leads'] }}</span>
+                                    </li>
+                                    <li class="d-flex justify-content-between align-items-center">
+                                        <span><i
+                                                class="bi bi-chat-dots-fill me-2 text-success"></i><strong>Followup</strong></span>
+                                        <span>{{ $report['followups'] }}</span>
+                                    </li>
+                                    <li class="d-flex justify-content-between align-items-center">
+                                        <span><i
+                                                class="bi bi-file-earmark-text-fill me-2 text-warning"></i><strong>Proposal</strong></span>
+                                        <span>{{ $report['proposals'] }}</span>
+                                    </li>
+                                    <li class="d-flex justify-content-between align-items-center">
+                                        <span><i
+                                                class="bi bi-file-earmark-check-fill me-2 text-info"></i><strong>Quotation</strong></span>
+                                        <span>{{ $report['quotation'] }}</span>
+                                    </li>
+                                    <li class="d-flex justify-content-between align-items-center">
+                                        <span><i
+                                                class="bi bi-check2-circle me-2 text-danger"></i><strong>Converted</strong></span>
+                                        <span>{{ $report['converted'] }}</span>
+                                    </li>
+                                </ul>
                             </div>
+                        </div>
                         @endforeach
                     </div>
                 </div>

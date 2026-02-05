@@ -2,68 +2,99 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Carbon\Carbon;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Lead extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
-    protected $table = 'lead'; // Recommended: Rename table to 'leads' in migration if possible
+    /**
+     * The table associated with the model.
+     * Note: Laravel expects 'leads', so we define 'lead' explicitly.
+     */
+    protected $table = 'lead';
 
-    // 1. Optimize Mass Assignment & Casting
+    // ============================
+    // 1. FILLABLE & CASTS
+    // ============================
+
     protected $fillable = [
-        'name', 'email', 'phone', 'status', 'lead_status', 'client_category', 
-        'assigned_user_id', 'project_category', 'quotation', 'quotation_date'
-        // Add other fields as needed
+        'name',
+        'email',
+        'phone',
+        'city',
+        'status',
+        'lead_status',
+        'client_category',
+        'assigned_user_id',
+        'assigned_by',
+        'user_id',
+        'project_category',
+        'quotation',
+        'quotation_date',
+        'country',
+        'description' // Added common field just in case
     ];
 
     protected $casts = [
-        'project_category' => 'array', // Auto-convert JSON to array
-        'created_at' => 'datetime',
-        'quotation_date' => 'datetime',
-        'assigned_date' => 'datetime',
+        'project_category' => 'array',
+        'created_at'       => 'datetime',
+        'updated_at'       => 'datetime',
+        'quotation_date'   => 'datetime',
+        'assigned_date'    => 'datetime',
+        'status'           => 'integer',
     ];
 
+
     // 2. Standardized Relationships (CamelCase)
-    
+
     public function category()
     {
         return $this->belongsTo(Category::class, 'client_category', 'category_id'); // Assuming category_id was typo
     }
- public function totalAmount(){
-        return $this->hasOne(TotalAmount::class, 'lead_id','id');
+    public function totalAmount()
+    {
+        return $this->hasOne(TotalAmount::class, 'lead_id', 'id');
     }
-     public function Followup(){
-        return $this->hasMany(Followup::class,'lead_id','id');
-    }
-   
-     public function user(){
-        return $this->belongsTo(User::class,'user_id','id');
-    }
-    public function AssignedUser(){
-        return $this->belongsTo(User::class,'assigned_by','id');
+    public function Followup()
+    {
+        return $this->hasMany(Followup::class, 'lead_id', 'id');
     }
 
-    public function assignd_user(){
-        return $this->belongsTo(User::class,'assigned_user_id','id');
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'user_id', 'id');
+    }
+    public function AssignedUser()
+    {
+        return $this->belongsTo(User::class, 'assigned_by', 'id');
+    }
+
+    public function assignd_user()
+    {
+        return $this->belongsTo(User::class, 'assigned_user_id', 'id');
     }
 
 
-   
 
-    public function users(){
-        return $this->belongsTo(User::class,'assigned_user_id','id');
+
+    public function users()
+    {
+        return $this->belongsTo(User::class, 'assigned_user_id', 'id');
     }
 
-    public function countries(){
-        return $this->belongsTo(Country::class,'country','id');
+    public function countries()
+    {
+        return $this->belongsTo(Country::class, 'country', 'id');
     }
 
-    public function prposals(){
-        return $this->belongsTo(Proposal::class,'id','lead_id');
+    public function prposals()
+    {
+        return $this->belongsTo(Proposal::class, 'id', 'lead_id');
     }
 
     public function lastFollowup()
@@ -121,7 +152,7 @@ class Lead extends Model
         });
 
         $query->when($filters['country'] ?? null, fn($q, $val) => $q->where('country', $val));
-        
+
         $query->when($filters['lead_day'] ?? null, function ($q, $val) use ($filters) {
             $this->applyDateScope($q, $val, 'created_at', $filters);
         });
@@ -141,11 +172,11 @@ class Lead extends Model
             'month'   => $query->whereMonth($column, Carbon::now()->month),
             'year'    => $query->whereYear($column, Carbon::now()->year),
             'custome' => $query->when($filters['from_date'] ?? null, function ($q) use ($filters) {
-                            $q->whereBetween($column, [
-                                Carbon::parse($filters['from_date']), 
-                                Carbon::parse($filters['to_date'])->endOfDay()
-                            ]);
-                        }),
+                $q->whereBetween($column, [
+                    Carbon::parse($filters['from_date']),
+                    Carbon::parse($filters['to_date'])->endOfDay()
+                ]);
+            }),
             default => null
         };
     }
@@ -161,16 +192,20 @@ class Lead extends Model
                 $query->whereHas('followups', fn($q) => $q->whereDate('next_date', Carbon::today()));
                 break;
             case 'delay':
-                $query->whereHas('followups', fn($q) => 
+                $query->whereHas(
+                    'followups',
+                    fn($q) =>
                     $q->where('delay', 1)->orWhere('is_completed', '!=', 1)
                 );
                 break;
             case 'cold_clients':
-                $query->whereHas('followups', fn($q) => 
+                $query->whereHas(
+                    'followups',
+                    fn($q) =>
                     $q->whereIn('reason', ['call back later', 'Not pickup'])
                 );
                 break;
-            // ... Add remaining cases here ...
+                // ... Add remaining cases here ...
         }
     }
 }
