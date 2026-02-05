@@ -2,14 +2,15 @@
 
 use Illuminate\Support\Facades\Http;
 use Twilio\Rest\Client;
-use App\Models\{RideCharge,EarlyLateFee,Payment};
+use App\Models\{RideCharge, EarlyLateFee, Payment};
 use Illuminate\Support\Facades\Mail;
 use Symfony\Component\Mime\Part\TextPart;
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 ### send mail 
 if (!function_exists('sendMail')) {
-    function sendMail($to, $subject, $header, $message, $footer = null) {
+    function sendMail($to, $subject, $header, $message, $footer = null)
+    {
         $mail = new PHPMailer(true);
 
         try {
@@ -24,18 +25,24 @@ if (!function_exists('sendMail')) {
 
             // Sender & Recipients
             $mail->setFrom(env('MAIL_FROM_ADDRESS', 'info@adxventure.com'), env('MAIL_FROM_NAME', 'TMS - Adxventure'));
-            
+
+            if (is_string($to) && str_contains($to, ',')) {
+                $to = explode(',', $to);
+            }
+
             if (is_array($to)) {
-                foreach ($to as $address) { $mail->addAddress($address); }
+                foreach ($to as $address) {
+                    $mail->addAddress(trim($address));
+                }
             } else {
-                $mail->addAddress($to);
+                $mail->addAddress(trim($to));
             }
 
             // Render Blade Email Template
             // Note: We pass 'body' instead of 'message' to avoid conflicts
             $html = view('admin.email.mail', [
                 'header'  => $header,
-                'body'    => $message, 
+                'body'    => $message,
                 'footer'  => $footer,
             ])->render();
 
@@ -47,7 +54,6 @@ if (!function_exists('sendMail')) {
             $mail->send();
             Log::info("Mail Sent successfully to: " . (is_array($to) ? implode(',', $to) : $to));
             return true;
-
         } catch (Exception $e) {
             Log::error("PHPMailer Error: " . $mail->ErrorInfo);
             return false;
@@ -76,7 +82,7 @@ if (!function_exists('sendLaravelMail')) {
             // --- Sender & Recipient ---
             $fromName  = config('mail.from.name', 'TMS Adxventure');
             $fromEmail = config('mail.from.address', 'info@adxventure.com');
-            
+
             $mail->setFrom($fromEmail, $fromName);
 
             // Handle multiple recipients if $to is an array
@@ -107,7 +113,6 @@ if (!function_exists('sendLaravelMail')) {
             // ✅ LOG SUCCESS
             \Log::info("Mail Sent via PHPMailer successfully to: " . (is_array($to) ? implode(', ', $to) : $to));
             return true;
-
         } catch (Exception $e) {
             // ❌ LOG FAILURE
             \Log::error("PHPMailer Failure to " . (is_array($to) ? implode(', ', $to) : $to) . ": " . $mail->ErrorInfo);
@@ -118,12 +123,16 @@ if (!function_exists('sendLaravelMail')) {
 
 
 if (!function_exists('addOrdinalSuffix')) {
-    function addOrdinalSuffix($number) {
+    function addOrdinalSuffix($number)
+    {
         if (!in_array(($number % 100), [11, 12, 13])) {
             switch ($number % 10) {
-                case 1:  return $number . '<sup>st</sup>';
-                case 2:  return $number . '<sup>nd</sup>';
-                case 3:  return $number . '<sup>rd</sup>';
+                case 1:
+                    return $number . '<sup>st</sup>';
+                case 2:
+                    return $number . '<sup>nd</sup>';
+                case 3:
+                    return $number . '<sup>rd</sup>';
             }
         }
         return $number . '<sup>th</sup>';

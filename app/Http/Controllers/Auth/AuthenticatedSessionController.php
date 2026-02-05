@@ -29,61 +29,6 @@ class AuthenticatedSessionController extends Controller
         return view('auth.login');
     }
 
-    /**
-     * Handle an incoming authentication request.
-     */
-    // public function authenticate(Request $request)
-    // {
-    //     // Validate the request
-    //     $request->validate([
-    //         'email' => ['required', 'string', 'email'],
-    //         'password' => ['required', 'string'],
-    //     ]);
-   
-    //     // Ensure the request is not rate-limited
-    //     $this->ensureIsNotRateLimited($request);
-
-    //     // Attempt to authenticate the user
-    //     if (! Auth::attempt($request->only('email', 'password'), $request->boolean('remember')))
-    //     {
-    //         // Record the failed attempt
-    //         RateLimiter::hit($this->throttleKey($request));
-
-    //         // Throw validation exception
-    //         throw ValidationException::withMessages([
-    //             'email' => trans('auth.failed'),
-    //         ]);
-    //     }
-
-    //     // Clear rate limiter on successful authentication
-    //     RateLimiter::clear($this->throttleKey($request));
-
-    //     // Check user status
-    //     $user = Auth::user();
-
-    //     if($user->is_active != 1 )
-    //     {
-    //         // Log out the user if their status is not 1
-    //         Auth::logout();
-
-    //         // Optionally, record the failed login attempt for user status issue
-    //         RateLimiter::hit($this->throttleKey($request));
-
-    //         // Throw validation exception with a custom message
-    //         throw ValidationException::withMessages([
-    //             'email' => trans('User Not Active'),
-    //         ]);
-    //     }
-
-    //     // Regenerate session
-    //     $request->session()->regenerate();
-
-    //     // Log the login activity
-    //     Logs::LoginLogsCreate($user->id, 1, 'Login session started');
-    //     // Redirect to the intended page or default route
-
-    //     return redirect()->intended(RouteServiceProvider::HOME);
-    // }
 
     public function authenticate(Request $request)
     {
@@ -215,41 +160,6 @@ class AuthenticatedSessionController extends Controller
     {
         return Str::transliterate(Str::lower($request->input('email')) . '|' . $request->ip());
     }
-
-    /**
-     * Destroy an authenticated session.
-     */
-    // public function destroy(Request $request): RedirectResponse
-    // {
-    //     Logs::LoginLogsCreate(auth()->user()->id, 2, 'Login session ended');
-
-    //     $late = LateReason::where('user_id', auth()->user()->id)
-    //     ->whereDate('created_at', Carbon::today()) // Ensure proper date filtering
-    //     ->latest()
-    //     ->first();
-    
-    //     if ($late) {
-    //         $loginTime = Carbon::parse($late->login_time);
-    //         $working_hrs = $loginTime->diff(now())->format('%H:%I:%S'); 
-    //         $late->update([
-    //             'logout_time' => now(),
-    //             'working_hrs' => $working_hrs
-    //         ]);
-    //     }
-    
-        
-    //     Auth::guard('web')->logout();
-
-    //     $request->session()->invalidate();
-
-    //     $request->session()->regenerateToken();
-
-    //     return redirect('/');
-    // }
-
-   
-
- 
     public function destroy(Request $request): RedirectResponse|JsonResponse
     {
         Logs::LoginLogsCreate(auth()->user()->id, 2, 'Login session ended');

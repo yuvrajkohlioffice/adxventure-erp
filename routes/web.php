@@ -84,9 +84,10 @@ Route::get('/clear-cache', function () {
 
         // 3. Optional: Try to run dump-autoload (Requires shell_exec enabled on server)
         if (function_exists('shell_exec')) {
-            $composerOutput = shell_exec('composer dump-autoload 2>&1');
-            $output[] = "Step 6 (Composer): " . $composerOutput;
-        } else {
+    // We move up one directory (../) before running composer
+    $composerOutput = shell_exec('cd .. && composer dump-autoload 2>&1');
+    $output[] = "Step 6 (Composer): " . $composerOutput;
+} else {
             $output[] = "Step 6: shell_exec is disabled. Please run 'composer dump-autoload' in terminal.";
         }
 

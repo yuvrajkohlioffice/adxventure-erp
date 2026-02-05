@@ -187,11 +187,12 @@
                            
                         <div class="col-lg-9 col-md-12">
                             <div id="filter-buttons">
-                                <div class="d-flex flex-wrap gap-2" id="today-followup-btn"> @if (Auth::user()->hasRole(['Super-Admin', 'Admin', 'Marketing-Manager']))
+                                <div class="d-flex flex-wrap gap-2" id="today-followup-btn"> 
+                                  
                                             <button class="btn btn-sm btn-outline-secondary  mx-2" style="height:10%"
                                                 data-filter="all_lead">All leads <span
                                                     class="badge bg-light text-dark">{{ $userRoleData['total_leads'] ?? 0 }}</span></button>
-                                        @endif
+                                        
                                         <button class="btn btn-sm btn-outline-info " style="height:10%"
                                             data-filter="fresh_lead"><i class="bi bi-stars"></i> Fresh leads <span
                                                 class="badge bg-light text-dark">{{ $userRoleData['freshLead'] ?? 0 }}</span></button>

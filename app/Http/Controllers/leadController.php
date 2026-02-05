@@ -72,70 +72,102 @@ class leadController extends Controller
         return view('admin.crm.create', compact('services', 'categories', 'countries', 'users'));
     }
 
-    public function store(Request $request)
-    {
-        $user = auth()->user();  // Access the stored user property
-    
+   public function store(Request $request)
+{
+    $user = auth()->user();
+
+    // 1. Prepare Full Phone for Validation
+    // We construct this only if both parts exist to avoid validaton weirdness
+    if ($request->filled('phone_code') && $request->filled('phone')) {
         $request->merge([
             'full_phone' => $request->phone_code . '-' . $request->phone
         ]);
-        $rules = [
-            'name' => 'required|string|max:50',
-            'phone' => 'required|numeric|digits_between:8,15',
-            'full_phone' => 'required|unique:lead,phone|unique:users,phone_no',
-            'email' => 'nullable|email|unique:lead,email|unique:users,email',
-            'client_category' => 'required|numeric|exists:category,category_id',
-            'lead_status' => 'required|numeric',
-            'country' => 'numeric|exists:countries,id',
-            'phone_code' => 'numeric|exists:countries,phonecode',
-            'lead_source' => 'required|numeric',
-            'project_category' => 'required|array',
-            'project_category.*' => 'required|integer|exists:project_category,id',
-            'city' => 'max:20'
-        ];
-    
-        $messages = [
-            'full_phone.unique' => 'This phone number already exists.',
-            'phone.digits_between' => 'The phone field must be between 8 and 15 digits.',
-            'email.unique' => 'This email address already exists.',
-        ];
-    
-        if ($request->lead_source == 3) {
-            $rules['ref_name'] = 'required|string';
-    
-            if ($user->hasRole(['Super-Admin', 'Admin', 'Marketing-Manager'])) {
-                $rules['assign_user'] = 'numeric';
-            }
-        }
-    
-        $validator = Validator::make($request->all(), $rules, $messages);
-    
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()]);
-        }
-    
-        $projectCategories = $request->project_category;
-    
-        $lead = Lead::create([
-            'name' => $request->name,
-            'company_name' => $request->company_name,
-            'phone' => $request->phone_code.'-'.$request->phone,
-            'email' => $request->email,
-            'website' => $request->website,
-            'city' => $request->city,
-            'country' => $request->country,
-            'lead_source' => $request->lead_source,
-            'project_category' => json_encode($projectCategories),
-            'lead_status' => $request->lead_status,
-            'client_category' => $request->client_category,
-            'user_id' => $user->id,
-            'assigned_user_id' => $user->id,
-            'assigned_by' => $request->assign_user ?? $user->id,
-        ]);
-
-        $url = url('crm/create/leads');
-        return $this->success('created', 'Leads', $url);
     }
+
+    // 2. Define Rules
+    $rules = [
+        'name'             => 'required|string|max:50',
+        'phone'            => 'required|numeric|digits_between:8,15',
+        'phone_code'       => 'required|numeric|exists:countries,phonecode',
+        // Check uniqueness on the combined string
+        'full_phone'       => 'nullable|unique:lead,phone|unique:users,phone_no',
+        'email'            => 'nullable|email|unique:lead,email|unique:users,email',
+        'client_category'  => 'required|numeric|exists:category,category_id',
+        'lead_status'      => 'required|numeric',
+        'country'          => 'nullable|numeric|exists:countries,id',
+        'lead_source'      => 'required|numeric',
+        'project_category' => 'required|array',
+        'project_category.*' => 'required|integer|exists:project_category,id',
+        'city'             => 'nullable|max:20',
+    ];
+
+    // 3. Conditional Rules (Assignment & Source)
+    if ($request->lead_source == 3) {
+        $rules['ref_name'] = 'required|string';
+    }
+
+    // Allow assignment only if user has permission
+    if ($user->hasRole(['Super-Admin', 'Admin', 'Marketing-Manager'])) {
+        $rules['assign_user'] = 'nullable|numeric|exists:users,id';
+    }
+
+    $messages = [
+        'full_phone.unique'    => 'This phone number already exists in the system.',
+        'phone.digits_between' => 'The phone number must be between 8 and 15 digits.',
+        'email.unique'         => 'This email address is already registered.',
+        'project_category.required' => 'Please select at least one project category.',
+    ];
+
+    // 4. Validate
+    $validator = Validator::make($request->all(), $rules, $messages);
+
+    if ($validator->fails()) {
+        $errors = $validator->errors();
+
+        // FIX: If 'full_phone' has an error, move it to 'phone' 
+        // so it displays correctly under the input field on the frontend.
+        if ($errors->has('full_phone')) {
+            $errors->add('phone', $errors->first('full_phone'));
+        }
+
+        return response()->json(['errors' => $errors]);
+    }
+
+    // 5. Determine Assignment Logic
+    // Default: Assigned to Self, By Self
+    $assignedUserId = $user->id; 
+    $assignedById   = $user->id;
+
+    // If Admin selected a specific user
+    if ($request->filled('assign_user') && $user->hasRole(['Super-Admin', 'Admin', 'Marketing-Manager'])) {
+        $assignedUserId = $request->assign_user; // Lead belongs to this person
+        $assignedById   = $user->id;             // Assigned by Admin
+    }
+
+    // 6. Create Lead
+    $lead = Lead::create([
+        'name'             => $request->name,
+        'company_name'     => $request->company_name,
+        'phone'            => $request->full_phone, // Use the merged value
+        'email'            => $request->email,
+        'website'          => $request->website,
+        'city'             => $request->city,
+        'country'          => $request->country,
+        'lead_source'      => $request->lead_source,
+        'project_category' => json_encode($request->project_category),
+        'lead_status'      => $request->lead_status,
+        'client_category'  => $request->client_category,
+        'ref_name'         => $request->ref_name ?? null, // Handle reference name
+        
+        // Ownership fields
+        'user_id'          => $user->id,          // Creator
+        'assigned_user_id' => $assignedUserId,    // Current Owner
+        'assigned_by'      => $assignedById,      // Who assigned it
+    ]);
+
+    $url = url('crm/create/leads');
+    return $this->success('created', 'Lead created successfully.', $url);
+}
 
     public function update(Request $request, $id, $status = null)
     {
