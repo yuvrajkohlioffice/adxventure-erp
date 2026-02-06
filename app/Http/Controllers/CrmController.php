@@ -510,27 +510,12 @@ class CrmController extends Controller
         }
 
         $user = auth()->user();
-        $userId = $user ? $user->id : null;
+        $userId = $user?->id;
         $today = Carbon::today();
+        $now = Carbon::now();
 
-        // -----------------------------------------------------------
-        // 1. DEFINE ROLES
-        // -----------------------------------------------------------
-        // Assuming 'Admin' or 'Super Admin' generally sees everything.
-        // BDE logic applies if they strictly have the BDE role.
         $isBDE = $user && $user->hasRole(['BDE', 'Business Development Intern']);
 
-        // If you have specific Admin logic, you can define $isAdmin here.
-        // $isAdmin = $user && $user->hasRole(['Admin', 'Super Admin']);
-
-        // -----------------------------------------------------------
-        // 2. HELPER SCOPES (Optimized for Reuse)
-        // -----------------------------------------------------------
-
-        /** * SCOPE: User Permission
-         * If BDE: Limit to own leads, assigned leads, or leads assigned BY them.
-         * If Admin: Do nothing (show all).
-         */
         $scopeUser = function ($q) use ($isBDE, $userId) {
             if ($isBDE) {
                 $q->where(function ($sub) use ($userId) {
@@ -539,45 +524,25 @@ class CrmController extends Controller
             }
         };
 
-        /**
-         * SCOPE: Exclude "Dead" Leads
-         * Removes leads marked as 'Not interested', 'Wrong Info', etc.
-         */
         $scopeExcludeRejects = function ($q) {
             $q->whereDoesntHave('lastFollowup', function ($sq) {
                 $sq->whereIn('reason', ['Not interested', 'Wrong Information', 'Work with other company']);
             });
         };
 
-        /**
-         * SCOPE: Pending / Incomplete Follow-ups
-         * Checks that the task is NOT marked completed.
-         */
         $scopeIncomplete = function ($q) {
             $q->where(function ($sub) {
                 $sub->whereNull('is_completed')->orWhere('is_completed', '!=', 1);
             });
         };
 
-        // -----------------------------------------------------------
-        // 3. APPLY GLOBAL ROLE SCOPE
-        // -----------------------------------------------------------
-        // Apply this immediately so ALL filters below respect the user's role.
         $query->tap($scopeUser);
 
-        // -----------------------------------------------------------
-        // 4. FILTER SWITCH
-        // -----------------------------------------------------------
         switch ($type) {
-            // ==========================================
-            //            GENERAL & FRESH
-            // ==========================================
             case 'all_lead':
-                // No extra filter needed (ScopeUser already applied)
                 break;
 
             case 'fresh_lead':
-                // Fresh = No followups ever created
                 $query->whereDoesntHave('Followup');
                 break;
 
@@ -586,66 +551,60 @@ class CrmController extends Controller
                 $query->whereDate('created_at', $today)->whereDoesntHave('Followup');
                 break;
 
-            // ==========================================
-            //            ACTIVE / HOT LEADS
-            // ==========================================
             case 'hot_client':
-                $query->tap($scopeExcludeRejects)->where('lead_status', 1); // Assuming 1 = Hot/Active
+                $query->tap($scopeExcludeRejects)->where('lead_status', 1);
                 break;
 
             case 'today_hot_client':
-                $query
-                    ->tap($scopeExcludeRejects)
-                    ->where('lead_status', 1)
-                    ->whereHas('Followup', function ($q) use ($today) {
-                        $q->whereDate('next_date', $today);
-                    });
+                $query->tap($scopeExcludeRejects)->where('lead_status', 1)->whereHas('Followup', fn($q) => $q->whereDate('next_date', $today));
                 break;
 
             case 'today_pending_followup':
-                $query->tap($scopeExcludeRejects)->whereHas('Followup', function ($q) use ($today, $userId, $isBDE, $scopeIncomplete) {
-                    $q->whereDate('next_date', $today)->tap($scopeIncomplete); // Must be incomplete
+                $query->tap($scopeExcludeRejects)->whereHas('Followup', function ($q) use ($today, $isBDE, $userId, $scopeIncomplete) {
+                    $q->whereDate('next_date', $today)->tap($scopeIncomplete);
 
-                    // Double check: if BDE, only show followups assigned to them
                     if ($isBDE) {
                         $q->where('user_id', $userId);
                     }
                 });
                 break;
 
-            // ==========================================
-            //            COLD / UNRESPONSIVE
-            // ==========================================
+            case 'all_followup':
+                $query->whereHas('Followup', fn($q) => $q->whereNotIn('reason', ['Work with other company', 'Wrong Information', 'Not interested']));
+                break;
+
+            case 'followup_pending':
+                $query->whereHas('Followup', fn($q) => $q->tap($scopeIncomplete));
+                break;
+
+            case 'followup_completed':
+                $query->whereHas('Followup', fn($q) => $q->where('is_completed', 1));
+                break;
+
+            case 'followup_other':
+                $query->whereHas('Followup', fn($q) => $q->where('reason', 'Other'));
+                break;
+
+            case 'followup_interested':
+                $query->whereHas('lastFollowup', fn($q) => $q->where('reason', 'Interested'));
+                break;
+
             case 'cold_clients':
-                $query->tap($scopeExcludeRejects)->whereHas('Followup', function ($q) {
-                    $q->whereIn('reason', ['call back later', 'Not pickup']);
-                });
+                $query->tap($scopeExcludeRejects)->whereHas('Followup', fn($q) => $q->whereIn('reason', ['call back later', 'Not pickup']));
                 break;
 
             case 'today_cold_clients':
-                $query->tap($scopeExcludeRejects)->whereHas('Followup', function ($q) use ($today) {
-                    $q->whereDate('created_at', $today)->whereIn('reason', ['call back later', 'Not pickup']);
-                });
-                break;
-
-            // ==========================================
-            //            CONVERSIONS & STATS
-            // ==========================================
-            case 'total_leads':
-                // Just counts (User Scope already applied)
+                $query->tap($scopeExcludeRejects)->whereHas('Followup', fn($q) => $q->whereDate('created_at', $today)->whereIn('reason', ['call back later', 'Not pickup']));
                 break;
 
             case 'convert_leads':
-                $query->where('status', 1); // Assuming 1 = Converted
+                $query->where('status', 1);
                 break;
 
             case 'today_converted':
                 $query->where('status', 1)->whereDate('created_at', $today);
                 break;
 
-            // ==========================================
-            //            FOLLOW-UP LOGS (Date Based)
-            // ==========================================
             case 'today_created_followup':
                 $query->whereHas('Followup', fn($q) => $q->whereDate('created_at', $today));
                 break;
@@ -656,94 +615,100 @@ class CrmController extends Controller
 
             case 'yesterday_followup':
                 $yesterday = Carbon::yesterday();
-                $query->whereHas('Followup', function ($q) use ($yesterday) {
-                    $q->whereDate('created_at', $yesterday)->orWhereDate('next_date', $yesterday);
-                });
+                $query->whereHas('Followup', fn($q) => $q->whereDate('created_at', $yesterday)->orWhereDate('next_date', $yesterday));
                 break;
 
             case 'last_7_days_followup':
             case 'this_month_followup':
-                // Determine date range based on type
-                $rangeStart = $type === 'last_7_days_followup' ? Carbon::now()->subDays(7) : Carbon::now()->startOfMonth();
+                $start = $type === 'last_7_days_followup' ? $now->copy()->subDays(7) : $now->copy()->startOfMonth();
 
-                $query->whereHas('Followup', function ($q) use ($rangeStart) {
-                    $q->whereBetween('created_at', [$rangeStart, Carbon::now()])->orWhereBetween('next_date', [$rangeStart, Carbon::now()]);
-                });
+                $query->whereHas('Followup', fn($q) => $q->whereBetween('created_at', [$start, $now])->orWhereBetween('next_date', [$start, $now]));
                 break;
 
-            // ==========================================
-            //            REJECTIONS / REASONS
-            // ==========================================
-            case 'rejects':
             case 'total_reject':
-                $query->whereHas('lastFollowup', function ($q) {
-                    $q->whereIn('reason', ['Wrong Information', 'Work with other company', 'Not interested']);
-                });
+            case 'rejects':
+                $query->whereHas('lastFollowup', fn($q) => $q->whereIn('reason', ['Wrong Information', 'Work with other company', 'Not interested']));
                 break;
 
-            case 'today_reject':
             case 'today_total_reject':
-                $query->whereHas('lastFollowup', function ($q) use ($today) {
-                    $q->whereIn('reason', ['Wrong Information', 'Work with other company', 'Not interested'])->whereDate('created_at', $today);
-                });
+            case 'today_reject':
+                $query->whereHas('lastFollowup', fn($q) => $q->whereIn('reason', ['Wrong Information', 'Work with other company', 'Not interested'])->whereDate('created_at', $today));
                 break;
 
-            case 'reject_wrong_info':
-                $query->whereHas('lastFollowup', fn($q) => $q->where('reason', 'Wrong Information'));
-                break;
-
-            case 'reject_other_company':
-                $query->whereHas('lastFollowup', fn($q) => $q->where('reason', 'Work with other company'));
-                break;
-
-            case 'reject_not_intersted':
-                $query->whereHas('lastFollowup', fn($q) => $q->where('reason', 'Not interested'));
-                break;
-
-            case 'followup_payment_today':
-                $query->whereHas('Followup', fn($q) => $q->where('reason', 'Payment Tomorrow'));
-                break;
-
-            // ==========================================
-            //            DELAYS (Overdue)
-            // ==========================================
             case 'delay':
-                // Logic: Any incomplete followup with delay >= 1
-                $query->tap($scopeExcludeRejects)->whereHas('Followup', function ($q) use ($scopeIncomplete) {
-                    $q->where('delay', '>=', 1)->tap($scopeIncomplete);
-                });
-                break;
+    $query
+        ->whereHas('Followup', function ($q) use ($scopeIncomplete) {
+            $q->where('delay', '>=', 1)
+              ->tap($scopeIncomplete)
+              ->whereNull('deleted_at');
+        })
+
+        // latest followup must NOT be rejected
+        ->whereDoesntHave('lastFollowup', function ($q) {
+            $q->whereIn('reason', [
+                'Not interested',
+                'Wrong Information',
+                'Work with other company'
+            ])->whereNull('deleted_at');
+        });
+
+    break;
 
             case 'today_delay':
-                // Logic: Exactly 1 day delayed
-                $query->tap($scopeExcludeRejects)->whereHas('Followup', function ($q) use ($scopeIncomplete) {
-                    $q->where('delay', 1)->tap($scopeIncomplete);
-                });
+    $query
+        ->whereHas('Followup', function ($q) use ($today, $scopeIncomplete) {
+            $q->whereDate('next_date', $today)
+              ->where('delay', '>=', 1)
+              ->tap($scopeIncomplete)
+              ->whereNull('deleted_at');
+        })
+
+        // latest followup must NOT be rejected
+        ->whereDoesntHave('lastFollowup', function ($q) {
+            $q->whereIn('reason', [
+                'Not interested',
+                'Wrong Information',
+                'Work with other company'
+            ])->whereNull('deleted_at');
+        });
+
+    break;
+
+            case 'delay_1_days':
+            case 'delay_2_days':
+            case 'delay_3_days':
+            case 'delay_4_days':
+            case 'delay_5_plus':
+                $days = (int) filter_var($type, FILTER_SANITIZE_NUMBER_INT);
+
+                $query
+                    ->whereHas('Followup', function ($q) use ($days, $type, $scopeIncomplete) {
+                        if ($type === 'delay_5_plus') {
+                            $q->where('delay', '>=', 5);
+                        } else {
+                            $q->where('delay', $days);
+                        }
+
+                        $q->tap($scopeIncomplete)->whereNull('deleted_at');
+                    })
+
+                    // Latest followup must NOT be rejected
+                    ->whereDoesntHave('lastFollowup', function ($q) {
+                        $q->whereIn('reason', ['Not interested', 'Wrong Information', 'Work with other company'])->whereNull('deleted_at');
+                    });
+
                 break;
 
-            // Dynamic Delay Handling (delay_2_days, delay_5_plus, etc.)
             default:
-                if (str_starts_with($type, 'delay_')) {
-                    $query->tap($scopeExcludeRejects);
+                $query
+                    ->whereHas('Followup', function ($q) use ($scopeIncomplete) {
+                        $q->where('delay')->tap($scopeIncomplete)->whereNull('deleted_at');
+                    })
 
-                    if ($type === 'delay_5_plus') {
-                        $query->whereHas('Followup', function ($q) use ($scopeIncomplete) {
-                            $q->where('delay', '>=', 5)->tap($scopeIncomplete);
-                        });
-                    } else {
-                        // Extract integer from string (e.g. "delay_3_days" -> 3)
-                        $days = (int) filter_var($type, FILTER_SANITIZE_NUMBER_INT);
-                        if ($days > 0) {
-                            $query->whereHas('Followup', function ($q) use ($days, $scopeIncomplete) {
-                                $q->where('delay', $days)->tap($scopeIncomplete);
-                            });
-                        }
-                    }
-                } else {
-                    // FALLBACK: If type doesn't match anything, usually we show active stuff
-                    // excluding rejects.
-                    $query->tap($scopeExcludeRejects);
-                }
+                    // 🔴 THIS IS THE IMPORTANT PART (NOT EXISTS latest rejected followup)
+                    ->whereDoesntHave('lastFollowup', function ($q) {
+                        $q->whereIn('reason', ['Not interested', 'Wrong Information', 'Work with other company'])->whereNull('deleted_at');
+                    });
                 break;
         }
     }
@@ -915,24 +880,22 @@ class CrmController extends Controller
                 ->count();
 
             $data['today_delay'] = Followup::query()
-    // 1. Filter Leads (Scope + Exclude 'Not Interested')
-    ->whereHas('lead', function ($q) use ($applyUserScope, $excludeNotInterested) {
-        $q->tap($applyUserScope)
-          ->tap($excludeNotInterested);
-    })
-    // 2. Strict Delay Check: Must be exactly 1
-    ->where('delay', 1)
-    
-    // 3. Strict Incomplete Check: Must NOT be completed
-    // (Using AND logic, not OR)
-    ->where(function ($q) {
-        $q->whereNull('is_completed')
-          ->orWhere('is_completed', '!=', 1);
-    })
-    
-    // 4. Count unique leads
-    ->distinct('lead_id')
-    ->count('lead_id');
+                // 1. Filter Leads (Scope + Exclude 'Not Interested')
+                ->whereHas('lead', function ($q) use ($applyUserScope, $excludeNotInterested) {
+                    $q->tap($applyUserScope)->tap($excludeNotInterested);
+                })
+                // 2. Strict Delay Check: Must be exactly 1
+                ->where('delay', 1)
+
+                // 3. Strict Incomplete Check: Must NOT be completed
+                // (Using AND logic, not OR)
+                ->where(function ($q) {
+                    $q->whereNull('is_completed')->orWhere('is_completed', '!=', 1);
+                })
+
+                // 4. Count unique leads
+                ->distinct('lead_id')
+                ->count('lead_id');
 
             $data['cold_clients'] = Followup::whereIn('reason', ['call back later', 'Not pickup'])
                 ->whereHas('lead', function ($q) use ($applyUserScope, $excludeNotInterested) {
@@ -1014,21 +977,20 @@ class CrmController extends Controller
                 ->count();
 
             $data['today_delay'] = Followup::query()
-    // 1. Filter by Lead Status (Exclude Not Interested)
-    ->whereHas('lead', function($q) use ($excludeNotInterestedAdmin) {
-        $q->tap($excludeNotInterestedAdmin);
-    })
-    // 2. Strict Delay Check matches the filter above
-    ->where('delay', 1)
-    
-    // 3. Strict Incomplete Check
-    ->where(function ($q) {
-        $q->whereNull('is_completed')
-          ->orWhere('is_completed', '!=', 1);
-    })
-    // 4. Ensure we count unique Leads (in case one lead has 2 delayed tasks)
-    ->distinct('lead_id')
-    ->count('lead_id');
+                // 1. Filter by Lead Status (Exclude Not Interested)
+                ->whereHas('lead', function ($q) use ($excludeNotInterestedAdmin) {
+                    $q->tap($excludeNotInterestedAdmin);
+                })
+                // 2. Strict Delay Check matches the filter above
+                ->where('delay', 1)
+
+                // 3. Strict Incomplete Check
+                ->where(function ($q) {
+                    $q->whereNull('is_completed')->orWhere('is_completed', '!=', 1);
+                })
+                // 4. Ensure we count unique Leads (in case one lead has 2 delayed tasks)
+                ->distinct('lead_id')
+                ->count('lead_id');
 
             $data['cold_clients'] = Followup::whereIn('reason', ['call back later', 'Not pickup'])
                 ->whereHas('lead', fn($q) => $q->tap($excludeNotInterestedAdmin))
