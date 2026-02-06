@@ -61,8 +61,11 @@ require __DIR__ . '/auth.php';
 require_once app_path('Helpers/helpers.php');
 
 Route::get('/update-delays', function () {
-    // 1. Get all leads
+    // 1. Get all leads that have followups
     $leads = Followup::select('lead_id')->distinct()->get();
+
+    // Reasons that should NOT have a delay calculated
+    $excludedReasons = ['Not interested', 'Wrong Information', 'Work with other company','Other'];
 
     foreach ($leads as $lead) {
         // 2. Get history Oldest -> Newest
@@ -72,37 +75,43 @@ Route::get('/update-delays', function () {
 
         foreach ($history as $key => $current) {
             $delay = 0;
-            $nextAction = $history[$key + 1] ?? null; // Get next record if exists
             
-            if ($current->next_date) {
-                $scheduled = \Carbon\Carbon::parse($current->next_date)->startOfDay();
+            // Check if current followup has an excluded reason
+            if (in_array($current->reason, $excludedReasons)) {
+                $delay = null; // or 0, depending on your DB column nullability
+            } else {
+                $nextAction = $history[$key + 1] ?? null; 
                 
-                // CASE A: Action was taken (Next record exists)
-                if ($nextAction) {
-                    $actionDate = \Carbon\Carbon::parse($nextAction->created_at)->startOfDay();
+                if ($current->next_date) {
+                    $scheduled = \Carbon\Carbon::parse($current->next_date)->startOfDay();
                     
-                    if ($actionDate->gt($scheduled)) {
-                        $delay = $actionDate->diffInDays($scheduled);
-                    }
-                } 
-                // CASE B: Action NOT taken (Latest record)
-                else {
-                    $today = now()->startOfDay();
-                    if ($today->gt($scheduled)) {
-                        $delay = $today->diffInDays($scheduled);
+                    // CASE A: Action was taken (Next record exists)
+                    if ($nextAction) {
+                        $actionDate = \Carbon\Carbon::parse($nextAction->created_at)->startOfDay();
+                        
+                        if ($actionDate->gt($scheduled)) {
+                            $delay = $actionDate->diffInDays($scheduled);
+                        }
+                    } 
+                    // CASE B: Action NOT taken (Latest record)
+                    else {
+                        $today = now()->startOfDay();
+                        if ($today->gt($scheduled)) {
+                            $delay = $today->diffInDays($scheduled);
+                        }
                     }
                 }
             }
 
-            // 3. Update DB
-            if ($current->delay != $delay) {
+            // 3. Update DB only if value changed
+            if ($current->delay !== $delay) {
                 $current->delay = $delay;
                 $current->save();
             }
         }
     }
 
-    return "Delays Updated Successfully";
+    return "Delays Updated Successfully (Excluded Rejections)";
 });
 Route::get('/clear-cache', function () {
     $output = [];

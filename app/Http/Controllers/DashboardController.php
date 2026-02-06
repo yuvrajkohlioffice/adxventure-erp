@@ -8,6 +8,29 @@ use Illuminate\Http\Request;
 
 class DashboardController extends Controller
 {
+    protected function baseDelayQuery($isBDE, $userId)
+    {
+        return Followup::whereHas('lead', function ($q) use ($isBDE, $userId) {
+            if ($isBDE) {
+                $q->where(function ($sub) use ($userId) {
+                    $sub->where('user_id', $userId)
+                        ->orWhere('assigned_by', $userId)
+                        ->orWhere('assigned_user_id', $userId);
+                });
+            }
+
+            $q->whereDoesntHave('lastFollowup', function ($sq) {
+                $sq->whereIn('reason', [
+                    'Not interested',
+                    'Wrong Information',
+                    'Work with other company'
+                ]);
+            });
+        })
+            ->where(function ($q) {
+                $q->whereNull('is_completed')->orWhere('is_completed', '!=', 1);
+            });
+    }
     public function dashboard()
     {
         $user = auth()->user();
@@ -28,44 +51,33 @@ class DashboardController extends Controller
         ];
 
         // --- Role Specific Logic (Role 8: Telecaller/Sales) ---
+        // --- Role Specific Logic (Role 8: Telecaller/Sales) ---
         if ($user->role_id == 8) {
-            
-            // 1. WORK DONE TODAY (Get IDs of leads we touched today)
-            // We use this list to REMOVE them from the "Pending" count so they don't appear twice.
+
+            // Leads worked today
             $workedLeadIds = Followup::where('user_id', $user->id)
                 ->whereDate('created_at', $today)
-                ->whereNotNull('lead_id')
-                ->distinct()
                 ->pluck('lead_id')
                 ->toArray();
 
-            $count['today_taken'] = count($workedLeadIds);
+            $count['today_taken'] = count(array_unique($workedLeadIds));
 
-            // 2. PENDING TODAY (Logic from handleRoleBasedLogic)
-            // Criteria:
-            // - Assigned to Me
-            // - Scheduled for Today
-            // - Not Completed (NULL or != 1)
-            // - AND Lead ID is NOT in the $workedLeadIds list (Meaning I haven't called them yet today)
-            $count['today_pending'] = Followup::where('user_id', $user->id)
-                ->whereDate('next_date', $today)
+            // Pending today
+            $count['today_pending'] = Followup::whereDate('next_date', $today)
+                ->where('user_id', $user->id)
                 ->where(function ($q) {
                     $q->whereNull('is_completed')->orWhere('is_completed', '!=', 1);
                 })
-                ->whereNotIn('lead_id', $workedLeadIds) 
+                ->whereNotIn('lead_id', $workedLeadIds)
                 ->distinct('lead_id')
                 ->count();
 
-            // 3. OVERDUE/DELAY (Optional: Items missed in the past)
-            // This logic is slightly complex; usually, you just want items scheduled BEFORE today that are incomplete.
-            $count['total_delay'] = Followup::where('user_id', $user->id)
-                ->whereDate('next_date', '<', $today) // Scheduled in the past
-                ->where(function ($q) {
-                    $q->whereNull('is_completed')->orWhere('is_completed', '!=', 1);
-                })
+            // ✅ DELAY (EXACT SAME LOGIC AS CRM)
+            $count['total_delay'] = (clone $this->baseDelayQuery(true, $user->id))
+                ->where('delay', '>=', 1)
+                ->whereNotIn('lead_id', $workedLeadIds)
                 ->distinct('lead_id')
-                ->count();
-
+                ->count('lead_id');
         } else {
             $count['today_taken']   = 0;
             $count['today_pending'] = 0;
@@ -77,6 +89,12 @@ class DashboardController extends Controller
         return view('dashboard', compact('count', 'leaves'));
     }
 
-    public function hrms() { return view('dashboard.hrms'); }
-    public function crm()  { return view('dashboard.crm'); }
+    public function hrms()
+    {
+        return view('dashboard.hrms');
+    }
+    public function crm()
+    {
+        return view('dashboard.crm');
+    }
 }

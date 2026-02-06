@@ -566,13 +566,25 @@ class CrmController extends Controller
                 break;
 
             case 'today_pending_followup':
-                $query->tap($scopeExcludeRejects)->whereHas('Followup', function ($q) use ($today, $isBDE, $userId, $scopeIncomplete) {
-                    $q->whereDate('next_date', $today)->tap($scopeIncomplete);
-
-                    if ($isBDE) {
+                // 1. Get IDs of all leads that have already been worked on today
+                $workedLeadIds = Followup::whereDate('created_at', $today)
+                    ->when($isBDE, function ($q) use ($userId) {
                         $q->where('user_id', $userId);
-                    }
-                });
+                    })
+                    ->pluck('lead_id')
+                    ->toArray();
+
+                // 2. Filter the query for leads that are scheduled for today but NOT in the worked list
+                $query->tap($scopeExcludeRejects)
+                    ->whereHas('Followup', function ($q) use ($today, $isBDE, $userId, $scopeIncomplete) {
+                        $q->whereDate('next_date', $today)
+                            ->tap($scopeIncomplete);
+
+                        if ($isBDE) {
+                            $q->where('user_id', $userId);
+                        }
+                    })
+                    ->whereNotIn('id', $workedLeadIds); // This ensures the count matches your SQL logic
                 break;
 
             case 'all_followup':
@@ -877,13 +889,23 @@ class CrmController extends Controller
             // These are lists of "What do I need to do?".
             // We APPLY exclusion because we don't need to work on "Not Interested" people.
 
+            // 1. First, get the IDs of leads already worked on today
+            $workedLeadIds = Followup::whereDate('created_at', $today)
+                ->where('user_id', $userId)
+                ->pluck('lead_id')
+                ->toArray();
+
+            // 2. Update the pending count logic
             $data['today_pending_followup'] = Followup::whereHas('lead', function ($q) use ($applyUserScope, $excludeNotInterested) {
-                $q->tap($applyUserScope)->tap($excludeNotInterested); // <--- Filter Applied
+                $q->tap($applyUserScope)->tap($excludeNotInterested);
             })
                 ->where(function ($q) {
                     $q->whereNull('is_completed')->orWhere('is_completed', '!=', 1);
                 })
                 ->whereDate('next_date', $today)
+                // EXCLUDE the leads already worked on today to match your SQL logic
+                ->whereNotIn('lead_id', $workedLeadIds)
+                ->distinct('lead_id') // Ensure we count unique leads
                 ->count();
 
             $data['delay'] = (clone $this->baseDelayQuery($isBDE, $userId))
@@ -1036,13 +1058,24 @@ class CrmController extends Controller
             $data['followup_today'] = $data['today_leads'] + Followup::whereNotNull('lead_id')->whereDate('next_date', $today)->count();
             $data['today_complated_followup'] = Followup::whereHas('lead')->distinct('lead_id')->whereDate('next_date', $today)->count();
 
+            // 1. First, identify the unique leads that have already been worked on today
+            $workedLeadIds = Followup::whereDate('created_at', $today)
+                ->when($isBDE, function ($q) use ($userId) {
+                    $q->where('user_id', $userId);
+                })
+                ->pluck('lead_id')
+                ->toArray();
+
+            // 2. Update the pending count to exclude those worked leads
             $data['today_pending_followup'] = Followup::whereHas('lead', fn($q) => $q->tap($excludeNotInterestedAdmin))
                 ->where(function ($query) {
                     $query->whereNull('is_completed')->orWhere('is_completed', '!=', 1);
                 })
                 ->whereDate('next_date', $today)
+                // EXCLUSION: Only count leads that haven't been touched today
+                ->whereNotIn('lead_id', $workedLeadIds)
+                ->distinct('lead_id')
                 ->count();
-
             // Financials
             $firstLead = $query->first();
             $data['total_amount'] = TotalAmount::whereIn('lead_id', $query->pluck('id'))->whereDate('created_at', $today)->sum('total_amount');
