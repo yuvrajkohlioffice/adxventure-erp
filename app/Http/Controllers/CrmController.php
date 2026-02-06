@@ -681,39 +681,39 @@ class CrmController extends Controller
                 break;
 
             case 'delay_1_days':
-case 'delay_2_days':
-case 'delay_3_days':
-case 'delay_4_days':
-case 'delay_5_plus':
+            case 'delay_2_days':
+            case 'delay_3_days':
+            case 'delay_4_days':
+            case 'delay_5_plus':
 
-    $days = (int) filter_var($type, FILTER_SANITIZE_NUMBER_INT);
+                $days = (int) filter_var($type, FILTER_SANITIZE_NUMBER_INT);
 
-    $query
-        ->whereHas('Followup', function ($q) use ($days, $type, $scopeIncomplete) {
+                $query
+                    ->whereHas('Followup', function ($q) use ($days, $type, $scopeIncomplete) {
 
-            // ❌ Exclude today
-            $q->whereDate('next_date', '<', Carbon::today());
+                        // ❌ Exclude today
+                        $q->whereDate('next_date', '<', Carbon::today());
 
-            if ($type === 'delay_5_plus') {
-                $q->where('delay', '>=', 5);
-            } else {
-                $q->where('delay', $days);
-            }
+                        if ($type === 'delay_5_plus') {
+                            $q->where('delay', '>=', 5);
+                        } else {
+                            $q->where('delay', $days);
+                        }
 
-            $q->tap($scopeIncomplete)
-              ->whereNull('deleted_at');
-        })
+                        $q->tap($scopeIncomplete)
+                            ->whereNull('deleted_at');
+                    })
 
-        // ✅ Correct whereIn usage
-        ->whereDoesntHave('lastFollowup', function ($q) {
-            $q->whereIn('reason', [
-                'Not interested',
-                'Wrong Information',
-                'Work with other company'
-            ])->whereNull('deleted_at');
-        });
+                    // ✅ Correct whereIn usage
+                    ->whereDoesntHave('lastFollowup', function ($q) {
+                        $q->whereIn('reason', [
+                            'Not interested',
+                            'Wrong Information',
+                            'Work with other company'
+                        ])->whereNull('deleted_at');
+                    });
 
-    break;
+                break;
 
             default:
                 $query
@@ -885,17 +885,17 @@ case 'delay_5_plus':
                 })
                 ->whereDate('next_date', $today)
                 ->count();
-   
-           $data['delay'] = (clone $this->baseDelayQuery($isBDE, $userId))
-    ->where('delay', '>=', 1)
-    ->distinct('lead_id')
-    ->count('lead_id');
+
+            $data['delay'] = (clone $this->baseDelayQuery($isBDE, $userId))
+                ->where('delay', '>=', 1)
+                ->distinct('lead_id')
+                ->count('lead_id');
 
             $data['today_delay'] = (clone $this->baseDelayQuery($isBDE, $userId))
-    ->whereDate('next_date', $today)
-    ->where('delay', '>=', 1)
-    ->distinct('lead_id')
-    ->count('lead_id');
+                ->whereDate('next_date', $today)
+                ->where('delay', '>=', 1)
+                ->distinct('lead_id')
+                ->count('lead_id');
 
             $data['cold_clients'] = Followup::whereIn('reason', ['call back later', 'Not pickup'])
                 ->whereHas('lead', function ($q) use ($applyUserScope, $excludeNotInterested) {
@@ -970,15 +970,15 @@ case 'delay_5_plus':
 
             // Work Queues -> Use Filter
             $data['delay'] = (clone $this->baseDelayQuery($isBDE, $userId))
-    ->where('delay', '>=', 1)
-    ->distinct('lead_id')
-    ->count('lead_id');
+                ->where('delay', '>=', 1)
+                ->distinct('lead_id')
+                ->count('lead_id');
 
             $data['today_delay'] = (clone $this->baseDelayQuery($isBDE, $userId))
-    ->whereDate('next_date', $today)
-    ->where('delay', '>=', 1)
-    ->distinct('lead_id')
-    ->count('lead_id');
+                ->whereDate('next_date', $today)
+                ->where('delay', '>=', 1)
+                ->distinct('lead_id')
+                ->count('lead_id');
 
             $data['cold_clients'] = Followup::whereIn('reason', ['call back later', 'Not pickup'])
                 ->whereHas('lead', fn($q) => $q->tap($excludeNotInterestedAdmin))
@@ -2386,30 +2386,30 @@ case 'delay_5_plus':
         }
     }
     private function baseDelayQuery($isBDE, $userId)
-{
-    return Followup::query()
-        ->whereNull('deleted_at')
-        ->where(function ($q) {
-            $q->whereNull('is_completed')->orWhere('is_completed', '!=', 1);
-        })
-        ->whereHas('lead', function ($q) use ($isBDE, $userId) {
+    {
+        return Followup::query()
+            ->whereNull('deleted_at')
+            ->where(function ($q) {
+                $q->whereNull('is_completed')->orWhere('is_completed', '!=', 1);
+            })
+            ->whereHas('lead', function ($q) use ($isBDE, $userId) {
 
-            if ($isBDE) {
-                $q->where(function ($sub) use ($userId) {
-                    $sub->where('user_id', $userId)
-                        ->orWhere('assigned_by', $userId)
-                        ->orWhere('assigned_user_id', $userId);
+                if ($isBDE) {
+                    $q->where(function ($sub) use ($userId) {
+                        $sub->where('user_id', $userId)
+                            ->orWhere('assigned_by', $userId)
+                            ->orWhere('assigned_user_id', $userId);
+                    });
+                }
+
+                // 🔴 CRITICAL: Latest followup must NOT be rejected
+                $q->whereDoesntHave('lastFollowup', function ($sq) {
+                    $sq->whereIn('reason', [
+                        'Not interested',
+                        'Wrong Information',
+                        'Work with other company'
+                    ])->whereNull('deleted_at');
                 });
-            }
-
-            // 🔴 CRITICAL: Latest followup must NOT be rejected
-            $q->whereDoesntHave('lastFollowup', function ($sq) {
-                $sq->whereIn('reason', [
-                    'Not interested',
-                    'Wrong Information',
-                    'Work with other company'
-                ])->whereNull('deleted_at');
             });
-        });
-}
+    }
 }
