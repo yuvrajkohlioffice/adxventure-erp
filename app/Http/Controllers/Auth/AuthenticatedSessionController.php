@@ -304,11 +304,9 @@ $subject = mb_encode_mimeheader("Late Arrival Notification - " . auth()->user()-
 
         // HR recipients
         $to = [
-            'manjeetchand01@gmail.com',
             'priyanka@adxventure.com',
             'hr@adxventure.com',
-            'suyalvikas@gmail.com',
-            'work@adxventure.com'
+            'suyalvikas@gmail.com'
         ];
         $recipients = implode(',', $to);
         // Send mail to HR

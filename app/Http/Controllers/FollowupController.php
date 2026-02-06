@@ -55,106 +55,120 @@ class FollowupController extends Controller
         ]);
     }
 
-    public function store(Request $request)
-    {
-        // dd($request->all());
-        $validator = validator::make($request->all(), [
-            'reason' => 'required|string',
-        ]);
+   public function store(Request $request)
+{
+    // 1. Validation
+    $rules = ['reason' => 'required|string'];
 
-        // Check if the reason is either 'Other' or 'Not pickup'
-        $rules = [];
-        if (in_array($request->reason, ['Other'])) {
-            $rules['remark'] = 'required|string|min:5|max:100';
-        }
+    if ($request->reason === 'Other') {
+        $rules['remark'] = 'required|string|min:5|max:100';
+    }
 
-        if (!in_array($request->reason, ['call Me Tomorrow', 'Not interested', 'Wrong Information', 'Not pickup', 'Payment Tomorrow', 'Interested', 'Work with other company'])) {
-            $rules['next_date'] = 'required'; // This will overwrite if already set, which is okay.
-            $rules['next_time'] = 'required';
-        }
+    // Auto-date logic check
+    $autoDateReasons = ['call Me Tomorrow', 'Not interested', 'Wrong Information', 'Not pickup', 'Payment Tomorrow', 'Interested', 'Work with other company'];
+    if (!in_array($request->reason, $autoDateReasons)) {
+        $rules['next_date'] = 'required';
+        $rules['next_time'] = 'required';
+    }
 
-        $validator = Validator::make($request->all(), $rules);
+    $validator = Validator::make($request->all(), $rules);
+    if ($validator->fails()) {
+        return response()->json(['errors' => $validator->errors()], 422);
+    }
 
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
-        }
+    // 2. Setup New Followup & Find Last One
+    $followup = new Followup();
+    $lastfollowup = null;
 
+    if ($request->invoice_id) {
+        $followup->invoice_id = $request->invoice_id;
+        // Get the last ACTIVE follow-up (the one we are closing now)
+        $lastfollowup = Followup::where('invoice_id', $request->invoice_id)
+            ->where(function($q) { $q->whereNull('is_completed')->orWhere('is_completed', '!=', 1); })
+            ->orderBy('id', 'desc')
+            ->first();
+    } elseif ($request->lead_id) {
+        $followup->lead_id = $request->lead_id;
+        $lastfollowup = Followup::where('lead_id', $request->lead_id)
+            ->where(function($q) { $q->whereNull('is_completed')->orWhere('is_completed', '!=', 1); })
+            ->orderBy('id', 'desc')
+            ->first();
+    } else {
+        $followup->project_id = $request->project_id;
+    }
 
+    // 3. Set Basic Info
+    $followup->reason = $request->reason;
+    $followup->remark = $request->remark;
+    $followup->user_id = auth()->id();
 
-        // dd($request->all());
-
-        $followup = new Followup();
-        $lastfollowup = null;
-        if ($request->invoice_id) {
-            $followup->invoice_id = $request->invoice_id;
-            $lastfollowup = Followup::where('invoice_id', $request->invoice_id)->orderBy('id', 'desc')->first();
-        } elseif ($request->lead_id) {
-            $followup->lead_id = $request->lead_id;
-            $lastfollowup = Followup::where('lead_id', $request->lead_id)
-                ->orderBy('id', 'desc')
-                ->first();
+    // 4. Set Next Date Logic (Existing Logic)
+    if ($request->next_date) {
+        $followup->next_date = Carbon::parse($request->next_date . ' ' . $request->next_time)->format('Y-m-d H:i:s');
+    } elseif ($request->reason === 'call Me Tomorrow') {
+         // Default to 10 AM tomorrow? Or preserve current time? 
+         // Adjust logic if needed, usually just +1 day
+        $followup->next_date = Carbon::tomorrow()->setTime(10, 0)->format('Y-m-d H:i:s');
+    } elseif (in_array($request->reason, ['call back later', 'Not pickup', 'Payment Tomorrow', 'Interested'])) {
+        $now = Carbon::now();
+        if ($now->hour < 13) {
+            $followup->next_date = Carbon::today()->setTime(15, 0)->format('Y-m-d H:i:s');
         } else {
-            $followup->project_id = $request->project_id;
-        }
-
-
-        $followup->reason = $request->reason;
-        $followup->remark = $request->remark;
-        $followup->user_id = auth()->user()->id;
-        $nextDateTime = $request->next_date . ' ' . $request->next_time;
-        if ($request->next_date) {
-            $followup->next_date = date('Y-m-d H:i:s', strtotime($request->next_date));
-        } elseif ($request->reason === 'call Me Tomorrow') {
-            $followup->next_date = date('Y-m-d H:i:s', strtotime('+1 day ' . $request->next_time));
-        } elseif ($request->reason === 'call back later' ||  $request->reason === 'Not pickup' || $request->reason === 'Payment Tomorrow' || $request->reason === 'Interested') {
-            $now = Carbon::now();
-            if ($now->hour < 13) { // Before 1 PM
-                // Set the next date to today at 3 PM
-                $followup->next_date = Carbon::today()->setTime(15, 0)->format('Y-m-d H:i:s');
-            } else { // After 1 PM
-                // Set the next date to tomorrow at 10 AM
-                $followup->next_date = Carbon::tomorrow()->setTime(10, 0)->format('Y-m-d H:i:s');
-            }
-        }
-
-
-        if ($lastfollowup) {
-            $lastFollowupDate = Carbon::parse($lastfollowup->next_date)->startOfDay();
-            $today = Carbon::today();
-            $dayDifference = $lastFollowupDate->diffInDays($today, false);
-
-            // If the day difference is negative or less than one, set delay to 0, otherwise use the calculated difference
-            $followup->delay = ($dayDifference < 1) ? 0 : $dayDifference;
-
-            if ($followup->delay >= 1) {
-                $leave = Leaves::where('user_id', auth()->user()->id)->whereDate('created_at', $lastFollowupDate)->count();
-                if ($leave > 0) {
-                    $followup->delay_reason = "Due to Leave";
-                }
-            }
-            $lastfollowup->is_completed = 1;
-            $lastfollowup->update();
-        } else {
-            $followup->delay = 0;
-        }
-
-        if ($followup->save()) {
-            // $url = $request->invoice_id ? url('/invoice') :
-            //        ($request->lead_id ? url('/crm/leads') : url('/projects'));
-
-            // return $this->success('created', 'followup', $url);
-            if ($request->invoice_id) {
-                $url = url('/invoice');
-                return $this->success('created', 'followup', $url);
-            } elseif ($request->lead_id) {
-                return response()->json([
-                    'status' => 'success',
-                    'message' => 'Followup created successfully',
-                    'data' => $followup,
-                ]);
-            }
+            $followup->next_date = Carbon::tomorrow()->setTime(10, 0)->format('Y-m-d H:i:s');
         }
     }
+
+    // 5. CALCULATE DELAY (The Fix)
+    // Delay = Difference between "When I was SUPPOSED to call" (Last Next Date) and "TODAY"
+    $delayDays = 0;
+
+    if ($lastfollowup && $lastfollowup->next_date) {
+        $scheduledDate = Carbon::parse($lastfollowup->next_date)->startOfDay();
+        $actionDate = Carbon::today(); // Today (when you are clicking the button)
+
+        // Calculate difference
+        // If scheduled for 1st and today is 5th, diff is 4 (Delayed)
+        // If scheduled for 5th and today is 5th, diff is 0 (On Time)
+        // If scheduled for 5th and today is 1st, diff is -4 (Early, treat as 0)
+        $diff = $scheduledDate->diffInDays($actionDate, false);
+
+        if ($diff > 0) {
+            $delayDays = $diff;
+        }
+
+        // Close the previous follow-up
+        $lastfollowup->is_completed = 1;
+        $lastfollowup->save();
+    }
+
+    // Set the delay on the CURRENT record (So we know this action was late)
+    $followup->delay = $delayDays;
+
+    // Check Leaves
+    if ($followup->delay >= 1 && $lastfollowup) {
+        // Check if user was on leave on the day they missed the call (Scheduled Date)
+        $leaveCount = Leaves::where('user_id', auth()->id())
+            ->whereDate('created_at', Carbon::parse($lastfollowup->next_date))
+            ->count();
+            
+        if ($leaveCount > 0) {
+            $followup->delay_reason = "Due to Leave";
+        }
+    }
+
+    // 6. Save
+    if ($followup->save()) {
+        if ($request->invoice_id) {
+            return $this->success('created', 'followup', url('/invoice'));
+        } elseif ($request->lead_id) {
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Followup created successfully',
+                'data' => $followup,
+            ]);
+        }
+    }
+}
 
     public function edit() {}
 

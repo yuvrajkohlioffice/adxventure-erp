@@ -811,7 +811,7 @@ class TaskController extends Controller
         })->first();
         
         if ($projectManager) {
-            $cc = $to = "suyalvikas@gmail.com," . auth()->user()->email . ",".$projectManager->email." ,shvngupta21@gmail.com,manjeetchand01@gmail.com";
+            $cc = $to = "suyalvikas@gmail.com," . auth()->user()->email . ",".$projectManager->email." ,shvngupta21@gmail.com";
         } else {
             echo 'No project manager found.';
         }
@@ -954,7 +954,7 @@ class TaskController extends Controller
         $subject = auth()->user()->name .' - Task Completation Report - Project : '.$project->name;
         
         if ($projectManager) {
-            $cc = $to = "manjeetchand01@gmail.com," . auth()->user()->email . ",".$projectManager->email." ,suyalvikas@gmail.com,shvngupta21@gmail.com";
+            $cc = $to = "suyalvikas@gmail.com," . auth()->user()->email . ",".$projectManager->email." ,shvngupta21@gmail.com";
         } else {
             echo 'No project manager found.';
         }
