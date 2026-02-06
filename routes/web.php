@@ -37,7 +37,7 @@ use App\Http\Controllers\{
 use App\Http\Controllers\settings\{ApiSettingsController};
 use App\Http\Controllers\Auth\EmailVerificationPromptController;
 use App\Models\User;
-use App\Models\{Role, lead, Api};
+use App\Models\{Role, lead, Api,Followup};
 use Spatie\Permission\Models\Permission;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Mail;
@@ -60,7 +60,50 @@ use Illuminate\Support\Facades\Artisan;
 require __DIR__ . '/auth.php';
 require_once app_path('Helpers/helpers.php');
 
+Route::get('/update-delays', function () {
+    // 1. Get all leads
+    $leads = Followup::select('lead_id')->distinct()->get();
 
+    foreach ($leads as $lead) {
+        // 2. Get history Oldest -> Newest
+        $history = Followup::where('lead_id', $lead->lead_id)
+                           ->orderBy('created_at', 'asc')
+                           ->get();
+
+        foreach ($history as $key => $current) {
+            $delay = 0;
+            $nextAction = $history[$key + 1] ?? null; // Get next record if exists
+            
+            if ($current->next_date) {
+                $scheduled = \Carbon\Carbon::parse($current->next_date)->startOfDay();
+                
+                // CASE A: Action was taken (Next record exists)
+                if ($nextAction) {
+                    $actionDate = \Carbon\Carbon::parse($nextAction->created_at)->startOfDay();
+                    
+                    if ($actionDate->gt($scheduled)) {
+                        $delay = $actionDate->diffInDays($scheduled);
+                    }
+                } 
+                // CASE B: Action NOT taken (Latest record)
+                else {
+                    $today = now()->startOfDay();
+                    if ($today->gt($scheduled)) {
+                        $delay = $today->diffInDays($scheduled);
+                    }
+                }
+            }
+
+            // 3. Update DB
+            if ($current->delay != $delay) {
+                $current->delay = $delay;
+                $current->save();
+            }
+        }
+    }
+
+    return "Delays Updated Successfully";
+});
 Route::get('/clear-cache', function () {
     $output = [];
 
