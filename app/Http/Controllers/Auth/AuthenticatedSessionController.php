@@ -277,8 +277,8 @@ class AuthenticatedSessionController extends Controller
             ->whereNotNull('status')
             ->whereBetween('created_at', [$startDate, $endDate])  
             ->count();
-
-        $subject = "Late Arrival Notification – ". auth()->user()->name;
+$subject = mb_encode_mimeheader("Late Arrival Notification - " . auth()->user()->name, "UTF-8");
+        
         $header = "Late Arrival Report";
         $date = now()->format('d M Y');
         $scheduled_time = '09:30 AM';
