@@ -7,7 +7,6 @@ use App\Models\User;
 use App\Models\Followup;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail; // ✅ Import Mail Facade for CC support
 
 class SendBdeDailyReport extends Command
 {
@@ -23,7 +22,7 @@ class SendBdeDailyReport extends Command
      *
      * @var string
      */
-    protected $description = 'Send 3 PM status report to all BDEs with CC to HR and Admin';
+    protected $description = 'Send 3 PM status report to all BDEs (plus HR/Admin) using sendMail helper';
 
     /**
      * Execute the console command.
@@ -35,7 +34,7 @@ class SendBdeDailyReport extends Command
         // ---------------------------------------------------------
         // 1. CONFIGURATION: CC EMAILS
         // ---------------------------------------------------------
-        $ccEmails = [
+        $ccEmails = [   
             'yuvrajkohli8090ylt@gmail.com',
             'hr@adxventure.com',
             'suyalvikas@gmail.com'
@@ -57,9 +56,9 @@ class SendBdeDailyReport extends Command
                 ->pluck('lead_id')
                 ->toArray();
             
-            // If they haven't worked on any lead today, skip them (Optional: remove this if you want to report 0 activity)
+            // Optional: Skip if no work done (Uncomment if needed)
             if (count($workedLeadIds) == 0) {
-                continue;
+                 continue;
             }
 
             // ---------------------------------------------------------
@@ -108,6 +107,7 @@ class SendBdeDailyReport extends Command
             // ---------------------------------------------------------
             
             $subject = "3 PM Work Status - " . $user->name . " (" . now()->format('d M') . ")";
+            $header = "Daily Performance Snapshot";
             $dateFormatted = now()->format('d M Y');
 
             // Dynamic Colors
@@ -163,22 +163,23 @@ class SendBdeDailyReport extends Command
             ";
 
             // ---------------------------------------------------------
-            // 6. SEND EMAIL WITH CC (Using Native Mail Facade)
+            // 6. SEND EMAIL USING HELPER
             // ---------------------------------------------------------
             
-            try {
-                // We use Mail::send (or html) to ensure we can attach CCs properly
-                // because custom helpers often don't have a CC argument.
-                Mail::send([], [], function ($m) use ($user, $subject, $message, $ccEmails) {
-                    $m->to($user->email)
-                      ->cc($ccEmails) // ✅ Adds HR and Admin in CC
-                      ->subject($subject)
-                      ->html($message); // Requires Laravel 9+, use setBody for older versions
-                });
+            // Combine BDE email with CC emails into one array
+            // The helper function iterates this array and adds them all as recipients
+            $recipients = array_merge([$user->email], $ccEmails);
 
-                $logMsg = "Report sent to [{$user->name}] (CC: HR/Admin)";
-                $this->info("✔ " . $logMsg);
-                Log::info($logMsg);
+            try {
+                // Call the helper function: sendMail($to, $subject, $header, $message, $footer)
+                $status = sendMail($recipients, $subject, $header, $message, null);
+
+                if ($status) {
+                    $logMsg = "Report sent to [{$user->name}] and CCs.";
+                    $this->info("✔ " . $logMsg);
+                } else {
+                    $this->error("✘ Helper returned false for [{$user->name}]");
+                }
 
             } catch (\Exception $e) {
                 $errorMsg = "FAILED to send report to [{$user->name}]. Error: {$e->getMessage()}";
