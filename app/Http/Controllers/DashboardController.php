@@ -5,9 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\{Lead, User, Projects, Followup, LateReason, Leaves};
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str; // Added for string manipulation if needed
 
 class DashboardController extends Controller
 {
+    // Helper query for delayed leads
     protected function baseDelayQuery($isBDE, $userId)
     {
         return Followup::whereHas('lead', function ($q) use ($isBDE, $userId) {
@@ -31,6 +33,7 @@ class DashboardController extends Controller
                 $q->whereNull('is_completed')->orWhere('is_completed', '!=', 1);
             });
     }
+
     public function dashboard()
     {
         $user = auth()->user();
@@ -50,11 +53,17 @@ class DashboardController extends Controller
             'attandance' => LateReason::whereDate('created_at', $today)->where('user_id', '!=', 1)->count(),
         ];
 
-        // --- Role Specific Logic (Role 8: Telecaller/Sales) ---
+        // --- Initialize Lists for BDE ---
+        $lists = [
+            'taken'   => collect([]),
+            'pending' => collect([]),
+            'delayed' => collect([])
+        ];
+
         // --- Role Specific Logic (Role 8: Telecaller/Sales) ---
         if ($user->role_id == 8) {
 
-            // Leads worked today
+            // 1. Leads Worked Today (IDs)
             $workedLeadIds = Followup::where('user_id', $user->id)
                 ->whereDate('created_at', $today)
                 ->pluck('lead_id')
@@ -62,22 +71,35 @@ class DashboardController extends Controller
 
             $count['today_taken'] = count(array_unique($workedLeadIds));
 
-            // Pending today
-            $count['today_pending'] = Followup::whereDate('next_date', $today)
+            // Fetch Data: Taken Today
+            $lists['taken'] = Followup::with('lead')
+                ->where('user_id', $user->id)
+                ->whereDate('created_at', $today)
+                ->latest()
+                ->get()
+                ->unique('lead_id');
+
+            // 2. Pending Today
+            $pendingQuery = Followup::with('lead')
+                ->whereDate('next_date', $today)
                 ->where('user_id', $user->id)
                 ->where(function ($q) {
                     $q->whereNull('is_completed')->orWhere('is_completed', '!=', 1);
                 })
-                ->whereNotIn('lead_id', $workedLeadIds)
-                ->distinct('lead_id')
-                ->count();
+                ->whereNotIn('lead_id', $workedLeadIds);
 
-            // ✅ DELAY (EXACT SAME LOGIC AS CRM)
-            $count['total_delay'] = (clone $this->baseDelayQuery(true, $user->id))
+            $count['today_pending'] = (clone $pendingQuery)->distinct('lead_id')->count();
+            $lists['pending']       = $pendingQuery->get()->unique('lead_id');
+
+            // 3. Delayed Leads
+            $delayQuery = (clone $this->baseDelayQuery(true, $user->id))
+                ->with('lead')
                 ->where('delay', '>=', 1)
-                ->whereNotIn('lead_id', $workedLeadIds)
-                ->distinct('lead_id')
-                ->count('lead_id');
+                ->whereNotIn('lead_id', $workedLeadIds);
+
+            $count['total_delay'] = (clone $delayQuery)->distinct('lead_id')->count('lead_id');
+            $lists['delayed']     = $delayQuery->get()->unique('lead_id');
+
         } else {
             $count['today_taken']   = 0;
             $count['today_pending'] = 0;
@@ -86,7 +108,7 @@ class DashboardController extends Controller
 
         $leaves = Leaves::whereDate('from_date', $today)->get();
 
-        return view('dashboard', compact('count', 'leaves'));
+        return view('dashboard', compact('count', 'leaves', 'lists'));
     }
 
     public function hrms()

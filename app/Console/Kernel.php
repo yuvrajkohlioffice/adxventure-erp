@@ -15,56 +15,55 @@ class Kernel extends ConsoleKernel
      */
     protected $commands = [
         \App\Console\Commands\LogoutUsers::class,
+        \App\Console\Commands\SendBdeDailyReport::class, // Ensure your new command is registered
     ];
 
     /**
      * Define the application's command schedule.
-     *
-     * @param  \Illuminate\Console\Scheduling\Schedule  $schedule
-     * @return void
      */
     protected function schedule(Schedule $schedule): void
     {
         // ---------------------------------------------------------------------
-        // 1. Employee Login Reminder
+        // MONDAY TO SATURDAY SCHEDULE (Excluding Sunday)
         // ---------------------------------------------------------------------
-        // Sends an email reminder to employees who haven't logged in yet.
-        // Schedule: Monday to Saturday at 09:45 AM (Excludes Sunday)
-        $schedule->call(function () {
-            (new CronController)->login_reminder();
-        })
-        ->days([1, 2, 3, 4, 5, 6]) // 1=Mon, 2=Tue, ... 6=Sat (0 is Sunday)
-        ->at('09:45');
+        // Using a group applies the days filter to all commands inside
+        // Days: 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
+        
+        $schedule->group(function (Schedule $schedule) {
+            
+            // 1. Employee Login Reminder - 09:45 AM
+            // Reminds employees who haven't logged in.
+            $schedule->call([CronController::class, 'login_reminder'])
+                     ->at('09:45');
+
+            // 2. Admin Late Attendance Report - 10:00 AM
+            // Sends a list of late employees to Admin.
+            $schedule->call([CronController::class, 'admin_login_mail'])
+                     ->at('10:00');
+
+            // 3. BDE Daily Performance Report - 03:00 PM
+            // Sends pending/taken/delay stats to active BDEs.
+            $schedule->command('report:bde-daily')
+                     ->at('15:00');
+
+        })->days([1, 2, 3, 4, 5, 6]); // Applies Mon-Sat filter to the whole group
+
 
         // ---------------------------------------------------------------------
-        // 2. Admin Late Attendance Report
+        // OTHER TASKS
         // ---------------------------------------------------------------------
-        // Sends a report to the Admin with a list of late employees.
-        // Schedule: Monday to Saturday at 10:00 AM (Excludes Sunday)
-        $schedule->call(function () {
-            (new CronController)->admin_login_mail();
-        })
-        ->days([1, 2, 3, 4, 5, 6])
-        ->at('10:00');
-
-        // ---------------------------------------------------------------------
-        // 3. Auto-Logout (Optional/Commented)
-        // ---------------------------------------------------------------------
-        // Force logout users at 8:00 PM daily
+        
+        // Auto-Logout at 8:00 PM Daily (If you want to enable it)
         // $schedule->command('users:logout')->dailyAt('20:00');
     }
 
     /**
      * Register the commands for the application.
-     *
-     * @return void
      */
     protected function commands(): void
     {
-        // Load commands from the Commands directory
         $this->load(__DIR__.'/Commands');
 
-        // Register console routes
         require base_path('routes/console.php');
     }
 }

@@ -341,13 +341,39 @@ class CrmController extends Controller
 
     private function applyFilters($query, Request $request)
     {
-        if ($request->has('search') && ($search = $request->input('search')['value'])) {
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', '%' . $search . '%')
-                    ->orWhere('email', 'like', '%' . $search . '%')
-                    ->orWhere('phone', 'like', '%' . $search . '%')
-                    ->orWhere('country', 'like', '%' . $search . '%')
-                    ->orWhere('city', 'like', '%' . $search . '%');
+        if ($request->has('search') && !empty($request->input('search')['value'])) {
+            $search = $request->input('search')['value'];
+
+            // 1. Split the search string into individual keywords (e.g., "John 9876")
+            // This allows finding a user by typing "Name Phone" or "Name City"
+            $terms = explode(' ', $search);
+
+            // 2. Wrap everything in a primary AND group
+            $query->where(function ($q) use ($terms) {
+
+                foreach ($terms as $term) {
+                    $term = trim($term);
+
+                    if (!empty($term)) {
+                        // 3. Create a sub-group for EACH term
+                        // "This specific word must exist in Name OR Email OR Phone..."
+                        $q->where(function ($subQuery) use ($term) {
+                            $subQuery->where('name', 'like', '%' . $term . '%')
+                                ->orWhere('email', 'like', '%' . $term . '%')
+
+                                // For Phone: Clean the database field slightly for better matching
+                                // (Optional: remove if DB is extremely heavy (millions of rows) to save CPU)
+                                ->orWhere('phone', 'like', '%' . $term . '%')
+
+                                ->orWhere('country', 'like', '%' . $term . '%')
+                                ->orWhere('city', 'like', '%' . $term . '%');
+
+                            // 4. (Optional) Advanced: Check Concatenated Name for strict "First Last" matching
+                            // Only use this line if you strictly need "FirstName LastName" as one block
+                            $subQuery->orWhereRaw("CONCAT(name, ' ', phone) LIKE ?", ['%' . $term . '%']);
+                        });
+                    }
+                }
             });
         }
 
