@@ -5,8 +5,7 @@
     <!-- Datatables css -->
     <link href="{{ asset('assets/vendor/datatable/css/dataTables.bootstrap5.min.css') }}" rel="stylesheet"
         type="text/css" />
-    <link href="{{ asset('assets/vendor/datatable/css/buttons.bootstrap5.min.css') }}" rel="stylesheet"
-        type="text/css" />
+    <link href="{{ asset('assets/vendor/datatable/css/buttons.bootstrap5.min.css') }}" rel="stylesheet" type="text/css" />
     <link href="{{ asset('assets/vendor/datatable/css/keyTable.bootstrap5.min.css') }}" rel="stylesheet"
         type="text/css" />
     <link href="{{ asset('assets/vendor/datatable/css/responsive.bootstrap5.min.css') }}" rel="stylesheet"
@@ -48,9 +47,9 @@
         <a style="float:right; margin-left:10px" class="btn btn-sm btn-outline-danger" href=""><i
                 class="bi bi-arrow-repeat"></i></a>
         @if (Auth::user()->hasRole(['Super-Admin', 'Admin', 'Marketing-Manager']))
-        <a style="float:right; margin-left:10px" class="btn btn-sm btn-primary" data-bs-target="#todayReportModal"
-            data-bs-toggle="modal">Today Report</a>
-        <!-- <button class="btn btn-sm btn-outline-secondary  mx-2"  style="height:10%" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasRight" aria-controls="offcanvasRight" data-filter="today_bde_report">Today BDE Report</button> -->
+            <a style="float:right; margin-left:10px" class="btn btn-sm btn-primary" data-bs-target="#todayReportModal"
+                data-bs-toggle="modal">Today Report</a>
+            <!-- <button class="btn btn-sm btn-outline-secondary  mx-2"  style="height:10%" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasRight" aria-controls="offcanvasRight" data-filter="today_bde_report">Today BDE Report</button> -->
         @endif
         <a style="float:right; margin-left:10px" class="btn btn-sm btn-primary" href="{{ route('crm.create') }}"><i
                 class="bi bi-plus-circle"></i> Add Lead</a>
@@ -88,7 +87,7 @@
                                         <option selected disabled>Select Country</option>
                                         <option value="">All Countries</option>
                                         @foreach ($countries as $country)
-                                        <option value="{{ $country->id }}">{{ $country->nicename }}</option>
+                                            <option value="{{ $country->id }}">{{ $country->nicename }}</option>
                                         @endforeach
                                     </select>
                                 </div>
@@ -130,10 +129,10 @@
                                         <option selected disabled>Category</option>
                                         <option value="">All Categories</option>
                                         @foreach ($categories as $category)
-                                        <option value="{{ $category->category_id }}" {{ request('category')==$category->
-                                            category_id ? 'selected' : '' }}>
-                                            {{ $category->name }} ({{ $category->lead->count() }})
-                                        </option>
+                                            <option value="{{ $category->category_id }}"
+                                                {{ request('category') == $category->category_id ? 'selected' : '' }}>
+                                                {{ $category->name }} ({{ $category->lead->count() }})
+                                            </option>
                                         @endforeach
                                     </select>
                                 </div>
@@ -145,10 +144,10 @@
                                         <option selected disabled>Service</option>
                                         <option value="">All Services</option>
                                         @foreach ($services as $service)
-                                        <option value="{{ $service->id }}" {{ request('service')==$service->id ?
-                                            'selected' : '' }}>
-                                            {{ $service->name }} ({{ $service->lead->count() }})
-                                        </option>
+                                            <option value="{{ $service->id }}"
+                                                {{ request('service') == $service->id ? 'selected' : '' }}>
+                                                {{ $service->name }} ({{ $service->lead->count() }})
+                                            </option>
                                         @endforeach
                                     </select>
                                 </div>
@@ -159,11 +158,14 @@
                                         id="filter-proposal">
                                         <option selected disabled>Proposal Date</option>
                                         <option value="">All</option>
-                                        <option value="today" {{ request('proposal')=='today' ? 'selected' : '' }}>Today
+                                        <option value="today" {{ request('proposal') == 'today' ? 'selected' : '' }}>
+                                            Today
                                         </option>
-                                        <option value="month" {{ request('proposal')=='month' ? 'selected' : '' }}>This
+                                        <option value="month" {{ request('proposal') == 'month' ? 'selected' : '' }}>
+                                            This
                                             Month</option>
-                                        <option value="year" {{ request('proposal')=='year' ? 'selected' : '' }}>This
+                                        <option value="year" {{ request('proposal') == 'year' ? 'selected' : '' }}>
+                                            This
                                             Year</option>
                                     </select>
                                 </div>
@@ -174,27 +176,30 @@
                                         id="filter-quotation">
                                         <option selected disabled>Quotation Date</option>
                                         <option value="">All</option>
-                                        <option value="today" {{ request('proposal')=='today' ? 'selected' : '' }}>Today
+                                        <option value="today" {{ request('proposal') == 'today' ? 'selected' : '' }}>
+                                            Today
                                         </option>
-                                        <option value="month" {{ request('proposal')=='month' ? 'selected' : '' }}>This
+                                        <option value="month" {{ request('proposal') == 'month' ? 'selected' : '' }}>
+                                            This
                                             Month</option>
-                                        <option value="year" {{ request('proposal')=='year' ? 'selected' : '' }}>This
+                                        <option value="year" {{ request('proposal') == 'year' ? 'selected' : '' }}>
+                                            This
                                             Year</option>
                                     </select>
                                 </div>
 
                                 {{-- Admin BDE Filter --}}
                                 @if (Auth::user()->hasRole(['Super-Admin', 'Admin', 'Marketing-Manager']))
-                                <div class="col-12 col-md-4 col-lg-3 col-xl-2">
-                                    <select class="form-select form-select-sm shadow-sm" name="search_bde"
-                                        id="filter-bde">
-                                        <option selected disabled>Select BDE</option>
-                                        <option value="">All BDEs</option>
-                                        @foreach ($bdeReports['bdeReports'] as $report)
-                                        <option value="{{ $report['id'] }}">{{ $report['name'] }}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
+                                    <div class="col-12 col-md-4 col-lg-3 col-xl-2">
+                                        <select class="form-select form-select-sm shadow-sm" name="search_bde"
+                                            id="filter-bde">
+                                            <option selected disabled>Select BDE</option>
+                                            <option value="">All BDEs</option>
+                                            @foreach ($bdeReports['bdeReports'] as $report)
+                                                <option value="{{ $report['id'] }}">{{ $report['name'] }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
                                 @endif
 
                                 {{-- Reset Button --}}
@@ -220,16 +225,16 @@
                                                 class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1"
                                                 data-filter="all_lead">
                                                 All Leads
-                                                <span class="badge bg-secondary text-white">{{
-                                                    $userRoleData['total_leads'] ?? 0 }}</span>
+                                                <span
+                                                    class="badge bg-secondary text-white">{{ $userRoleData['total_leads'] ?? 0 }}</span>
                                             </button>
 
                                             {{-- Fresh Leads --}}
                                             <button class="btn btn-outline-info btn-sm d-flex align-items-center gap-1"
                                                 data-filter="fresh_lead">
                                                 <i class="bi bi-stars"></i> Fresh
-                                                <span class="badge bg-info text-dark">{{ $userRoleData['freshLead'] ?? 0
-                                                    }}</span>
+                                                <span
+                                                    class="badge bg-info text-dark">{{ $userRoleData['freshLead'] ?? 0 }}</span>
                                             </button>
 
                                             {{-- Followup Leads --}}
@@ -237,8 +242,8 @@
                                                 class="btn btn-outline-primary btn-sm d-flex align-items-center gap-1"
                                                 data-filter="all_followup">
                                                 <i class="bi bi-telephone-outbound"></i> Followup
-                                                <span class="badge bg-primary text-white">{{
-                                                    $userRoleData['total_followup'] ?? 0 }}</span>
+                                                <span
+                                                    class="badge bg-primary text-white">{{ $userRoleData['total_followup'] ?? 0 }}</span>
                                             </button>
 
                                             {{-- Delay Leads --}}
@@ -246,8 +251,8 @@
                                                 class="btn btn-outline-danger btn-sm d-flex align-items-center gap-1"
                                                 data-filter="delay">
                                                 <i class="bi bi-alarm"></i> Delay
-                                                <span class="badge bg-danger text-white">{{ $userRoleData['delay'] ?? 0
-                                                    }}</span>
+                                                <span
+                                                    class="badge bg-danger text-white">{{ $userRoleData['delay'] ?? 0 }}</span>
                                             </button>
 
                                             {{-- Hot Clients --}}
@@ -255,8 +260,8 @@
                                                 class="btn btn-outline-success btn-sm d-flex align-items-center gap-1"
                                                 data-filter="hot_client">
                                                 <i class="bi bi-fire"></i> Hot
-                                                <span class="badge bg-success text-white">{{ $userRoleData['hot_client']
-                                                    ?? 0 }}</span>
+                                                <span
+                                                    class="badge bg-success text-white">{{ $userRoleData['hot_client'] ?? 0 }}</span>
                                             </button>
 
                                             {{-- Cold Clients --}}
@@ -264,24 +269,24 @@
                                                 class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1"
                                                 data-filter="cold_clients">
                                                 <i class="bi bi-snow"></i> Cold
-                                                <span class="badge bg-secondary text-white">{{
-                                                    $userRoleData['cold_clients'] ?? 0 }}</span>
+                                                <span
+                                                    class="badge bg-secondary text-white">{{ $userRoleData['cold_clients'] ?? 0 }}</span>
                                             </button>
 
                                             {{-- Rejects --}}
                                             <button class="btn btn-outline-dark btn-sm d-flex align-items-center gap-1"
                                                 data-filter="rejects">
                                                 <i class="bi bi-x-circle"></i> Rejects
-                                                <span class="badge bg-dark text-white">{{ $userRoleData['total_reject']
-                                                    ?? 0 }}</span>
+                                                <span
+                                                    class="badge bg-dark text-white">{{ $userRoleData['total_reject'] ?? 0 }}</span>
                                             </button>
 
                                             {{-- Converted --}}
                                             <button class="btn btn-success btn-sm d-flex align-items-center gap-1"
                                                 data-filter="convert_leads">
                                                 <i class="bi bi-check-circle"></i> Converted
-                                                <span class="badge bg-light text-success">{{
-                                                    $userRoleData['convert_leads'] ?? 0 }}</span>
+                                                <span
+                                                    class="badge bg-light text-success">{{ $userRoleData['convert_leads'] ?? 0 }}</span>
                                             </button>
 
                                             {{-- Not Interested --}}
@@ -289,15 +294,15 @@
                                                 class="btn btn-outline-warning btn-sm d-flex align-items-center gap-1"
                                                 data-filter="reject_not_intersted">
                                                 <i class="bi bi-slash-circle"></i> Not Interested
-                                                <span class="badge bg-warning text-dark">{{
-                                                    $userRoleData['reject_not_intersted_count'] ?? 0 }}</span>
+                                                <span
+                                                    class="badge bg-warning text-dark">{{ $userRoleData['reject_not_intersted_count'] ?? 0 }}</span>
                                             </button>
                                             <button
-                                                class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1"
+                                                class="btn btn-outline-secondary btn-sm  d-flex align-items-center gap-1"
                                                 data-filter="other_rejection">
-                                                <i class="bi bi-slash-circle"></i> Other
-                                                <span class="badge bg-secondary text-white">{{
-                                                    $userRoleData['other_count'] ?? 0 }}</span>
+                                                <i class="bi bi-archive"></i> Other
+                                                <span
+                                                    class="badge bg-secondary text-white rounded-circle">{{ $userRoleData['other_count'] ?? 0 }}</span>
                                             </button>
 
                                             {{-- Sort Dropdown (Right Aligned) --}}
@@ -433,14 +438,14 @@
                         <div id="datatable-buttons_wrapper" class="dataTables_wrapper dt-bootstrap5 no-footer mt-3">
                             <div class="row justify-content-end">
                                 @if (Auth::user()->hasRole(['Super-Admin', 'Admin', 'Marketing-Manager']))
-                                <div class="col-2 mb-2">
-                                    <select class="form-select" name="lead_assigned" id="lead-assigned">
-                                        <option selected disabled>Assign lead</option>
-                                        @foreach ($bdeReports['bdeReports'] as $report)
-                                        <option value="{{ $report['id'] }}">{{ $report['name'] }}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
+                                    <div class="col-2 mb-2">
+                                        <select class="form-select" name="lead_assigned" id="lead-assigned">
+                                            <option selected disabled>Assign lead</option>
+                                            @foreach ($bdeReports['bdeReports'] as $report)
+                                                <option value="{{ $report['id'] }}">{{ $report['name'] }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
                                 @endif
                                 <div class="col-12">
                                     <table id="leads-table"
