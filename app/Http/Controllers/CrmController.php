@@ -26,6 +26,7 @@ use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Http;
 use App\Helpers\EncodingHelper;
+use GuzzleHttp\Psr7\Query;
 
 class CrmController extends Controller
 {
@@ -717,7 +718,27 @@ class CrmController extends Controller
                     });
 
                 break;
-
+            case 'reject_not_intersted':
+                // We want to FIND leads where the LAST followup was a rejection.
+                $query->whereHas('lastFollowup', function ($q) {
+                    $q->whereIn('reason', [
+                        'Not interested',
+                        'Wrong Information',
+                        'Work with other company'
+                    ])
+                        ->whereNull('deleted_at');
+                });
+                break;
+                case 'other_rejection':
+                // We want to FIND leads where the LAST followup was a rejection.
+                $query->whereHas('lastFollowup', function ($q) {
+                    $q->whereIn('reason', [
+                        'Other'
+                        
+                    ])
+                        ->whereNull('deleted_at');
+                });
+                break;
             case 'delay_1_days':
             case 'delay_2_days':
             case 'delay_3_days':
@@ -872,7 +893,7 @@ class CrmController extends Controller
             $data['leads'] = $query
                 ->with('countries')
                 ->tap($applyUserScope)
-                ->tap($excludeNotInterested) // Remove this line if you want to see Rejects in the main table too
+                // ->tap($excludeNotInterested) // Remove this line if you want to see Rejects in the main table too
                 ->orderBy('id', 'desc')
                 ->paginate(20);
 
@@ -961,11 +982,19 @@ class CrmController extends Controller
                 ->count();
 
             // --- REJECTS ---
-            $data['reject_not_intersted_count'] = Lead::tap($applyUserScope)
-                ->whereHas('lastFollowup', function ($q) {
-                    $q->where('reason', 'Not interested');
-                })
-                ->count();
+            $data['reject_not_intersted_count'] = Lead::tap($applyUserScope)->whereHas('lastFollowup', function ($q) {
+    $q->whereIn('reason', [
+        'Not interested', 
+        'Wrong Information', 
+        'Work with other company'
+    ]);
+})->count();
+ $data['other_count'] = Lead::tap($applyUserScope)->whereHas('lastFollowup', function ($q) {
+    $q->whereIn('reason', [
+        'Other'
+    ]);
+})->count();
+           
 
             // Other Stats
             $data['today_proposal'] = DB::table('prposal')->whereNotNull('lead_id')->where('user_id', $userId)->where('created_at', '>=', $today)->count();
@@ -1040,7 +1069,7 @@ class CrmController extends Controller
                 ->count();
 
             // Main List (Filtered)
-            $data['leads'] = $query->with('countries')->tap($excludeNotInterestedAdmin)->orderBy('id', 'desc')->paginate(20);
+            $data['leads'] = $query->with('countries')->orderBy('id', 'desc')->paginate(20);
 
             // Historical -> No Filter
             $data['total_leads'] = Lead::count();
@@ -1053,8 +1082,17 @@ class CrmController extends Controller
 
             // Rejects
             $data['reject_not_intersted_count'] = Lead::whereHas('lastFollowup', function ($q) {
-                $q->where('reason', 'Not interested');
-            })->count();
+    $q->whereIn('reason', [
+        'Not interested', 
+        'Wrong Information', 
+        'Work with other company'
+    ]);
+})->count();
+ $data['other_count'] = Lead::whereHas('lastFollowup', function ($q) {
+    $q->whereIn('reason', [
+        'Other'
+    ]);
+})->count();
 
             // ... (Keep remaining Admin total/historical counts as they were) ...
             $data['today_created_followup'] = Followup::whereHas('lead')->distinct('lead_id')->whereDate('created_at', $today)->count();

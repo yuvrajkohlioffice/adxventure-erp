@@ -292,6 +292,13 @@
                                                 <span class="badge bg-warning text-dark">{{
                                                     $userRoleData['reject_not_intersted_count'] ?? 0 }}</span>
                                             </button>
+                                            <button
+                                                class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1"
+                                                data-filter="other_rejection">
+                                                <i class="bi bi-slash-circle"></i> Other
+                                                <span class="badge bg-secondary text-white">{{
+                                                    $userRoleData['other_count'] ?? 0 }}</span>
+                                            </button>
 
                                             {{-- Sort Dropdown (Right Aligned) --}}
                                             <div class="ms-auto">
@@ -345,7 +352,7 @@
                                             data-filter="today_followup">Re Followup ({{ $userRoleData['today_followup']
                                             ?? '0' }}) </button> --}}
                                         <button class="btn btn-outline-secondary btn-sm filter-button mx-2"
-                                            data-filter="last_7_days_followup">This Week
+                                            data-filter="last_7_days_followup">Last 7 Days
                                             ({{ $userRoleData['last7Days_followup'] ?? '0' }}) </button>
                                         <button class="btn btn-outline-secondary btn-sm filter-button mx-2"
                                             data-filter="this_month_followup">This Month
